@@ -1,0 +1,24 @@
+services:
+  - type: app
+    name: local-tv
+    description: "Digital Signage application with real-time sync"
+    source:
+      type: github
+      owner: <your-github-username>    # UPDATE THIS
+      repo: <your-repo-name>           # UPDATE THIS
+      ref: main                        # Or the branch you wish to deploy
+    build:
+      type: dockerfile
+      file: Dockerfile
+    ports:
+      - 3000:3000
+    env:
+      PORT: "3000"
+      NODE_ENV: "production"
+    mounts:
+      - type: volume
+        name: localtv_uploads
+        mountPath: /workspace/backend/uploads
+      - type: volume
+        name: localtv_data
+        mountPath: /workspace/backend    # Maps the entire backend to persist data.db and uploads together
