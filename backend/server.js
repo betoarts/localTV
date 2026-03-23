@@ -74,6 +74,18 @@ io.on('connection', (socket) => {
 
 // ===== API ENDPOINTS =====
 
+app.post('/api/auth/login', (req, res) => {
+  const { password } = req.body;
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+  
+  if (password === ADMIN_PASSWORD) {
+    res.json({ success: true, token: 'fake-jwt-token-for-now' });
+  } else {
+    res.status(401).json({ error: 'Senha incorreta' });
+  }
+});
+
+
 app.get('/api/media', (req, res) => {
   db.all('SELECT * FROM media ORDER BY id DESC', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });

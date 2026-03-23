@@ -1,8 +1,14 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, MonitorPlay, Film, RadioReceiver, Activity, Type } from 'lucide-react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, MonitorPlay, Film, RadioReceiver, Activity, Type, LogOut } from 'lucide-react';
 
 const AdminLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('admin_token');
+    navigate('/login');
+  };
 
   const navItems = [
     { name: 'DASHBOARD', path: '/admin', icon: <LayoutDashboard size={18} /> },
@@ -61,6 +67,16 @@ const AdminLayout = () => {
               </Link>
             );
           })}
+
+          <div className="mt-auto pt-6 border-t border-neutral-800/30 px-2">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-2 py-3 text-sm font-mono text-neutral-500 hover:text-red-400 hover:bg-red-500/5 transition-all duration-200 rounded-lg group"
+            >
+              <LogOut size={18} className="group-hover:scale-110 transition-transform" />
+              LOGOUT_CMD
+            </button>
+          </div>
         </nav>
 
         {/* System Status Footer */}
@@ -71,6 +87,7 @@ const AdminLayout = () => {
           </div>
         </div>
       </aside>
+
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-neutral-900/20 via-[#050505] to-[#050505]">
