@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { getMedia, uploadMedia, deleteMedia } from '../api';
+import { getMedia, uploadMedia, deleteMedia, API_BASE } from '../api';
+
 import { UploadCloud, Trash2, Image as ImageIcon, Video as VideoIcon, Film, Activity } from 'lucide-react';
 
 const MediaLibrary = () => {
@@ -88,7 +89,8 @@ const MediaLibrary = () => {
                 {item.type === 'video' ? (
                   <>
                     <video 
-                      src={`http://${window.location.hostname}:3000${item.path}`}
+                      src={API_BASE + item.path}
+
                       className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity relative z-0 mix-blend-screen grayscale group-hover:grayscale-0"
                       preload="metadata"
                       muted
@@ -104,7 +106,7 @@ const MediaLibrary = () => {
                 ) : (
                   <div 
                     className="w-full h-full bg-cover bg-center opacity-70 group-hover:opacity-100 transition-opacity relative z-0 mix-blend-screen grayscale group-hover:grayscale-0 sequence-hover" 
-                    style={{ backgroundImage: `url(http://${window.location.hostname}:3000${item.path})` }} 
+                    style={{ backgroundImage: `url(${API_BASE + item.path})` }} 
                   />
                 )}
                 
