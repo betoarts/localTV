@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MonitorPlay, Film, RadioReceiver, Activity, Type, LogOut } from 'lucide-react';
+import { LayoutDashboard, MonitorPlay, Film, RadioReceiver, Activity, Type, LogOut, Settings } from 'lucide-react';
+
 
 const AdminLayout = () => {
   const location = useLocation();
@@ -16,6 +17,8 @@ const AdminLayout = () => {
     { name: 'PLAYLISTS', path: '/admin/playlists', icon: <MonitorPlay size={18} /> },
     { name: 'DEVICES', path: '/admin/devices', icon: <RadioReceiver size={18} /> },
     { name: 'OVERLAYS', path: '/admin/overlays', icon: <Type size={18} /> },
+    { name: 'SETTINGS', path: '/admin/settings', icon: <Settings size={18} /> },
+
   ];
 
   return (

@@ -20,10 +20,16 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
+// DATA_DIR can be configured to a persistent volume (same as in database.js)
+const _dataDir = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.join(__dirname);
+
+const UPLOAD_DIR = path.join(_dataDir, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR);
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
+
 
 // Serve static media
 app.use('/media', express.static(UPLOAD_DIR));
@@ -228,31 +234,32 @@ app.get('/api/devices', (req, res) => {
 });
 
 app.post('/api/devices', (req, res) => {
-  const { name, playlist_id, orientation, transition, muted, is_playing } = req.body;
+  const { name, playlist_id, orientation, resolution, transition, muted, is_playing } = req.body;
   db.run(
-    'INSERT INTO devices (name, playlist_id, orientation, transition, muted, is_playing) VALUES (?, ?, ?, ?, ?, ?)',
-    [name, playlist_id || null, orientation || 'landscape', transition || 'fade', muted !== undefined ? muted : 1, is_playing !== undefined ? is_playing : 1],
+    'INSERT INTO devices (name, playlist_id, orientation, resolution, transition, muted, is_playing) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [name, playlist_id || null, orientation || 'landscape', resolution || 'auto', transition || 'fade', muted !== undefined ? muted : 1, is_playing !== undefined ? is_playing : 1],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       io.emit('devices_updated');
-      res.json({ id: this.lastID, name, playlist_id, orientation, transition });
+      res.json({ id: this.lastID, name, playlist_id, orientation, resolution, transition });
+
     }
   );
 });
 
 app.put('/api/devices/:id', (req, res) => {
   console.log("Updating device", req.params.id, req.body);
-  const { name, playlist_id, orientation, transition, muted, is_playing } = req.body;
+  const { name, playlist_id, orientation, resolution, transition, muted, is_playing } = req.body;
   
   db.run(
-    'UPDATE devices SET name = ?, playlist_id = ?, orientation = ?, transition = ?, muted = ?, is_playing = ? WHERE id = ?',
-    [name, playlist_id, orientation, transition || 'fade', muted !== undefined ? muted : 1, is_playing !== undefined ? is_playing : 1, req.params.id],
+    'UPDATE devices SET name = ?, playlist_id = ?, orientation = ?, resolution = ?, transition = ?, muted = ?, is_playing = ? WHERE id = ?',
+    [name, playlist_id, orientation, resolution || 'auto', transition || 'fade', muted !== undefined ? muted : 1, is_playing !== undefined ? is_playing : 1, req.params.id],
     (err) => {
       if (err) return res.status(500).json({ error: err.message });
       
       // Tell this specific device it has a new configuration!
       io.to(`device_${req.params.id}`).emit('command_update', {
-        playlist_id, orientation, transition, muted, is_playing
+        playlist_id, orientation, resolution, transition, muted, is_playing
       });
       console.log('Emitted command_update to device', req.params.id);
       
@@ -356,6 +363,86 @@ app.delete('/api/overlays/:id', (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     io.emit('overlays_updated');
     res.json({ success: true });
+  });
+});
+
+// ===== CONFIG EXPORT / IMPORT =====
+
+app.get('/api/config/export', (req, res) => {
+  db.serialize(() => {
+    const result = {};
+    const tables = ['devices', 'playlists', 'playlist_items', 'media', 'text_overlays'];
+    let done = 0;
+
+    tables.forEach(table => {
+      db.all(`SELECT * FROM ${table}`, [], (err, rows) => {
+        result[table] = err ? [] : rows;
+        done++;
+        if (done === tables.length) {
+          const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+          res.setHeader('Content-Disposition', `attachment; filename="localtv-config-${now}.json"`);
+          res.setHeader('Content-Type', 'application/json');
+          res.json({ version: 1, exported_at: new Date().toISOString(), ...result });
+        }
+      });
+    });
+  });
+});
+
+app.post('/api/config/import', (req, res) => {
+  const { devices, playlists, playlist_items, text_overlays } = req.body;
+
+  if (!devices && !playlists) {
+    return res.status(400).json({ error: 'Invalid config file.' });
+  }
+
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+
+    // Clear existing config (but keep media files records)
+    db.run('DELETE FROM text_overlays');
+    db.run('DELETE FROM playlist_items');
+    db.run('DELETE FROM playlists');
+    db.run('DELETE FROM devices');
+
+    // Re-insert playlists
+    (playlists || []).forEach(p => {
+      db.run('INSERT INTO playlists (id, name) VALUES (?, ?)', [p.id, p.name]);
+    });
+
+    // Re-insert devices
+    (devices || []).forEach(d => {
+      db.run(
+        'INSERT INTO devices (id, name, playlist_id, orientation, resolution, transition, muted, is_playing, status, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [d.id, d.name, d.playlist_id, d.orientation || 'landscape', d.resolution || 'auto', d.transition || 'fade', d.muted !== undefined ? d.muted : 1, d.is_playing !== undefined ? d.is_playing : 1, 'offline', d.last_seen]
+      );
+    });
+
+    // Re-insert playlist items
+    (playlist_items || []).forEach(i => {
+      db.run(
+        'INSERT INTO playlist_items (id, playlist_id, media_id, item_order, duration) VALUES (?, ?, ?, ?, ?)',
+        [i.id, i.playlist_id, i.media_id, i.item_order, i.duration]
+      );
+    });
+
+    // Re-insert overlays
+    (text_overlays || []).forEach(o => {
+      db.run(
+        `INSERT INTO text_overlays (id, text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [o.id, o.text, o.target_type, o.target_id, o.position, o.animation, o.font_size, o.font_color, o.bg_color, o.bg_blur, o.font_weight, o.text_shadow, o.border, o.duration_seconds, o.is_active, o.image_path, o.image_size]
+      );
+    });
+
+    db.run('COMMIT', (err) => {
+      if (err) {
+        db.run('ROLLBACK');
+        return res.status(500).json({ error: err.message });
+      }
+      io.emit('devices_updated');
+      res.json({ success: true, imported: { devices: (devices||[]).length, playlists: (playlists||[]).length, overlays: (text_overlays||[]).length } });
+    });
   });
 });
 

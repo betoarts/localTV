@@ -8,6 +8,8 @@ import TextOverlays from './admin/TextOverlays';
 import Player from './player/Player';
 import Login from './admin/Login';
 import ProtectedRoute from './components/ProtectedRoute';
+import ConfigSettings from './admin/ConfigSettings';
+
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
             <Route path="playlists" element={<Playlists />} />
             <Route path="devices" element={<Devices />} />
             <Route path="overlays" element={<TextOverlays />} />
+            <Route path="settings" element={<ConfigSettings />} />
+
           </Route>
         </Route>
 

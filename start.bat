@@ -2,48 +2,68 @@
 setlocal EnableDelayedExpansion
 
 echo =======================================
-echo Starting Local Digital Signage System
+echo  Local TV - Gerenciador de Inicializacao
 echo =======================================
+echo.
 
-echo [1/3] Building Frontend...
-cd frontend
-call npx vite build
-cd ..
+:: ── Persistent Data Directory ──────────────────────────────────────
+:: If a .env file exists in the backend folder, load DATA_DIR from it.
+:: Otherwise, default to a folder called "LocalTV_Data" on the Desktop.
+set DATA_DIR=
 
-echo [2/3] Starting Backend API (Port 3000)...
-start "Backend" cmd /c "cd backend && node server.js"
+if exist "backend\.env" (
+    for /f "usebackq tokens=1,* delims==" %%A in ("backend\.env") do (
+        if /i "%%A"=="DATA_DIR" set DATA_DIR=%%B
+    )
+)
 
-echo [3/3] Starting Frontend Dev Server (Port 5173)...
-start "Frontend" cmd /c "cd frontend && npm run dev"
+if "!DATA_DIR!"=="" (
+    set DATA_DIR=%USERPROFILE%\Desktop\LocalTV_Data
+    echo [AVISO] DATA_DIR nao configurado. Usando: !DATA_DIR!
+) else (
+    echo [INFO] Dados persistentes em: !DATA_DIR!
+)
+
+:: Create the data folder if it doesn't exist yet
+if not exist "!DATA_DIR!" (
+    mkdir "!DATA_DIR!"
+    echo [INFO] Pasta de dados criada: !DATA_DIR!
+)
 
 echo.
-echo Searching for exact Local IP Address...
+echo [1/3] Iniciando Backend (Porta 3000)...
+start "LocalTV - Backend" cmd /c "cd backend && set DATA_DIR=!DATA_DIR!&& node server.js"
 
-:: Extrair IP IPv4 local (Suporta PT-BR e EN)
+echo [2/3] Iniciando Frontend Dev Server (Porta 5173)...
+start "LocalTV - Frontend" cmd /c "cd frontend && npm run dev"
+
+echo [3/3] Detectando IP local...
 set LOCAL_IP=
-for /f "tokens=2 delims=:" %%A in ('ipconfig ^| findstr /C:"IPv4 Address" /C:"Endereço IPv4" /C:"Endereco IPv4"') do (
+for /f "tokens=2 delims=:" %%A in ('ipconfig ^| findstr /C:"IPv4 Address" /C:"Endere" /C:"Endereco IPv4"') do (
     set temp_ip=%%A
     set LOCAL_IP=!temp_ip: =!
 )
 
-echo System started successfully!
-echo =======================================
-if "%LOCAL_IP%"=="" (
-    echo Acesse o Painel (Neste PC): http://localhost:5173/admin
-    echo Acesse na TV (Outro disp): Descubra seu IP e acesse http://SEU_IP:5173/player/[ID]
-) else (
-    echo Painel de Controle  : http://localhost:5173/admin
-    echo Player na TV        : http://%LOCAL_IP%:5173/player/[ID_DO_DISPOSITIVO]
-    echo Producao (porta 3000): http://%LOCAL_IP%:3000
-    echo.
-    echo Cadastre os dispositivos no painel em '/admin/devices'.
-)
-echo =======================================
-echo Aguardando o servidor iniciar para abrir o navegador...
 timeout /t 4 /nobreak >nul
-start http://localhost:5173/admin
 
 echo.
-echo Os servidores estao rodando em telas auxiliares (cmd).
-echo Para encerrar o sistema, feche as janelas auxiliares.
+echo =======================================
+echo  Sistema iniciado com sucesso!
+echo =======================================
+if "%LOCAL_IP%"=="" (
+    echo Painel Admin : http://localhost:5173/admin
+    echo Player (TV)  : http://localhost:5173/player/[ID]
+) else (
+    echo Painel Admin  : http://localhost:5173/admin
+    echo Producao      : http://%LOCAL_IP%:3000
+    echo Player na TV  : http://%LOCAL_IP%:5173/player/[ID_DO_DISPOSITIVO]
+)
+echo Dados salvos em: !DATA_DIR!
+echo =======================================
+echo.
+
+start http://localhost:5173/admin
+
+echo Os servidores estao rodando em janelas auxiliares.
+echo Para encerrar, feche as janelas "LocalTV - Backend" e "LocalTV - Frontend".
 pause

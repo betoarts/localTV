@@ -3,8 +3,13 @@ dist/
 .env
 *.tmp
 *.log
+
+# --- Persistent Data (never commit, stored in DATA_DIR) ---
+# When DATA_DIR is not set, these live inside backend/
 backend/data.db
 backend/data.db*
+backend/uploads/
+
 out.txt
 gitstatus.txt
 git_status.txt

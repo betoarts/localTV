@@ -2,8 +2,19 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 
-const dbPath = path.resolve(__dirname, 'data.db');
+// DATA_DIR can be set to an external persistent volume on the server.
+// Default: inside the backend folder (works for local dev).
+const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.resolve(__dirname);
+
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+const dbPath = path.join(DATA_DIR, 'data.db');
 const db = new sqlite3.Database(dbPath);
+
 
 const initDb = () => {
   db.serialize(() => {
@@ -13,7 +24,9 @@ const initDb = () => {
       name TEXT NOT NULL,
       playlist_id INTEGER,
       orientation TEXT DEFAULT 'landscape',
+      resolution TEXT DEFAULT 'auto',
       transition TEXT DEFAULT 'fade',
+
       status TEXT DEFAULT 'offline',
       last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
@@ -22,6 +35,11 @@ const initDb = () => {
     db.run("ALTER TABLE devices ADD COLUMN transition TEXT DEFAULT 'fade'", (err) => {
       // Ignore error if column already exists
     });
+
+    db.run("ALTER TABLE devices ADD COLUMN resolution TEXT DEFAULT 'auto'", (err) => {
+      // Ignore error if column already exists
+    });
+
 
     // Gracefully add muted column 
     db.run("ALTER TABLE devices ADD COLUMN muted INTEGER DEFAULT 1", (err) => {

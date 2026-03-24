@@ -207,7 +207,45 @@ const Player = () => {
   const currentItem = items[currentIndex];
   const isPortrait = device?.orientation === 'portrait';
   
+  const getResolutionDimensions = (res, isPortrait) => {
+    switch(res) {
+      case '720p': return isPortrait ? { width: 720, height: 1280 } : { width: 1280, height: 720 };
+      case '1080p': return isPortrait ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 };
+      case '4k': return isPortrait ? { width: 2160, height: 3840 } : { width: 3840, height: 2160 };
+      default: return null;
+    }
+  };
+
+  const resDims = getResolutionDimensions(device?.resolution, isPortrait);
+
+  const getWrapperStyles = () => {
+    if (!resDims) return {};
+    const { width, height } = resDims;
+    if (isPortrait) {
+      // Render in landscape dimensions then rotate for portrait display
+      const scale = `min(calc(100vw / ${height}), calc(100vh / ${width}))`;
+      return {
+        width: `${width}px`,
+        height: `${height}px`,
+        transform: `rotate(-90deg) scale(${scale})`,
+        transformOrigin: 'center center',
+        flexShrink: 0,
+      };
+    } else {
+      const scale = `min(calc(100vw / ${width}), calc(100vh / ${height}))`;
+      return {
+        width: `${width}px`,
+        height: `${height}px`,
+        transform: `scale(${scale})`,
+        transformOrigin: 'center center',
+        flexShrink: 0,
+      };
+    }
+  };
+
+
   const getAnimationClass = (transition) => {
+
     switch (transition) {
       case 'fade': return 'animate-fade-in';
       case 'slide': return 'animate-slide-in';
@@ -226,12 +264,15 @@ const Player = () => {
     <div className="fixed inset-0 bg-black overflow-hidden cursor-pointer flex items-center justify-center" onClick={handleStartFullscreen}>
       <style>{`html, body { overflow: hidden !important; background-color: black !important; margin: 0; padding: 0; touch-action: none; } * { cursor: none !important; user-select: none; }`}</style>
       <div 
-        className={`flex items-center justify-center absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${
-          isPortrait 
-            ? 'w-[100vh] h-[100vw] -rotate-90' 
-            : 'w-full h-full'
+        className={`flex items-center justify-center ${
+          resDims 
+            ? '' 
+            : 'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ' + (isPortrait ? 'w-[100vh] h-[100vw] -rotate-90' : 'w-full h-full')
         }`}
+        style={getWrapperStyles()}
       >
+
+
         
         {currentItem.type === 'video' ? (
           <video

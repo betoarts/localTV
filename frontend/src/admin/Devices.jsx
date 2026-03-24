@@ -263,6 +263,22 @@ const Devices = () => {
 
                 <div>
                   <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">
+                    RENDER_RESOLUTION
+                  </label>
+                  <select
+                    value={device.resolution || 'auto'}
+                    onChange={(e) => handleUpdateDevice(device.id, 'resolution', e.target.value)}
+                    className="w-full border border-neutral-700 bg-[#050505] text-neutral-300 px-2 py-1.5 text-xs focus:outline-none focus:border-cyan-500 uppercase cursor-pointer"
+                  >
+                    <option value="auto">AUTO_FIT (NATIVE)</option>
+                    <option value="720p">720P (HD)</option>
+                    <option value="1080p">1080P (FHD)</option>
+                    <option value="4k">4K (UHD)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">
                     TRANSITION_PROTOCOL
                   </label>
                   <select
