@@ -32,7 +32,8 @@ if not exist "!DATA_DIR!" (
 
 echo.
 echo [1/3] Iniciando Backend (Porta 3000)...
-start "LocalTV - Backend" cmd /c "cd backend && set DATA_DIR=!DATA_DIR!&& node server.js"
+start "LocalTV - Backend" cmd /c "cd backend && set DATA_DIR=!DATA_DIR! && node server.js"
+
 
 echo [2/3] Iniciando Frontend Dev Server (Porta 5173)...
 start "LocalTV - Frontend" cmd /c "cd frontend && npm run dev"

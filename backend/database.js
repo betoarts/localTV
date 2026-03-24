@@ -101,6 +101,14 @@ const initDb = () => {
     // Gracefully add image columns to text_overlays
     db.run("ALTER TABLE text_overlays ADD COLUMN image_path TEXT DEFAULT NULL", (err) => {});
     db.run("ALTER TABLE text_overlays ADD COLUMN image_size INTEGER DEFAULT 100", (err) => {});
+
+    // --- Performance Optimization Indexes ---
+    db.run("CREATE INDEX IF NOT EXISTS idx_devices_playlist ON devices(playlist_id)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_playlist_items_playlist ON playlist_items(playlist_id)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_playlist_items_order ON playlist_items(item_order)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_media_type ON media(type)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_overlays_target ON text_overlays(target_type, target_id)");
+
   });
 };
 

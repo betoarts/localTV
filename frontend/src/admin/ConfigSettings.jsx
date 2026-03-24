@@ -7,15 +7,29 @@ const ConfigSettings = () => {
   const [status, setStatus] = useState(null); // { type: 'success'|'error', message: string }
   const fileInputRef = useRef(null);
 
-  const handleExport = () => {
-    const url = `${API_BASE}/api/config/export`;
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = '';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setStatus({ type: 'success', message: 'Exportação iniciada. Verifique seus downloads.' });
+  const handleExport = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/config/export`);
+      if (!res.ok) throw new Error('Erro ao exportar configuração.');
+
+      const blob = await res.blob();
+      const contentDisposition = res.headers.get('Content-Disposition') || '';
+      const match = contentDisposition.match(/filename="(.+?)"/);
+      const filename = match ? match[1] : 'localtv-config.json';
+
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+
+      setStatus({ type: 'success', message: 'Exportação iniciada. Verifique seus downloads.' });
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message });
+    }
     setTimeout(() => setStatus(null), 4000);
   };
 
@@ -39,9 +53,18 @@ const ConfigSettings = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       });
-      const data = await res.json();
+
+      let data;
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(`Resposta inesperada do servidor (${res.status}). Verifique se o backend está rodando.`);
+      }
 
       if (!res.ok) throw new Error(data.error || 'Erro desconhecido ao importar.');
+
 
       const { imported } = data;
       setStatus({

@@ -88,17 +88,15 @@ const MediaLibrary = () => {
                 
                 {item.type === 'video' ? (
                   <>
-                    <video 
+                    <video
                       src={API_BASE + item.path}
-
-                      className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity relative z-0 mix-blend-screen grayscale group-hover:grayscale-0"
-                      preload="metadata"
+                      className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
                       muted
-                      playsInline
-                      loop
-                      onMouseOver={(e) => { e.target.play().catch(() => {}); }}
+                      preload="metadata"
+                      onMouseOver={(e) => { e.target.play(); e.target.currentTime = 0; }}
                       onMouseOut={(e) => { e.target.pause(); e.target.currentTime = 0; }}
                     />
+
                     <div className="absolute top-2 left-2 p-1 bg-[#050505]/80 border border-neutral-800 z-10 pointer-events-none">
                       <VideoIcon size={12} className="text-fuchsia-500 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" />
                     </div>

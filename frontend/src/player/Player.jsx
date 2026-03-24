@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { getDevice, getPlaylistItems, getOverlaysByTarget, API_BASE } from '../api';
@@ -7,7 +7,32 @@ import TextOverlayRenderer from './TextOverlayRenderer';
 const SOCKET_URL = API_BASE || undefined;
 const MEDIA_BASE = API_BASE;
 
+// Helper helpers - Static, moved outside to avoid re-allocation
+const getResolutionDimensions = (res, isPortrait) => {
+  switch(res) {
+    case '720p': return isPortrait ? { width: 720, height: 1280 } : { width: 1280, height: 720 };
+    case '1080p': return isPortrait ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 };
+    case '4k': return isPortrait ? { width: 2160, height: 3840 } : { width: 3840, height: 2160 };
+    default: return null;
+  }
+};
+
+const getAnimationClass = (transition) => {
+  switch (transition) {
+    case 'fade': return 'animate-fade-in';
+    case 'slide': return 'animate-slide-in';
+    case 'slide-up': return 'animate-slide-up';
+    case 'zoom': return 'animate-zoom-in';
+    case 'blur': return 'animate-blur-in';
+    case 'crt': return 'animate-crt-on';
+    case 'glitch': return 'animate-glitch';
+    case 'none': return '';
+    default: return 'animate-fade-in';
+  }
+};
+
 const Player = () => {
+
   const { deviceId } = useParams();
   const [device, setDevice] = useState(null);
   const [items, setItems] = useState([]);
@@ -172,6 +197,43 @@ const Player = () => {
     }
   };
 
+  const currentItem = items[currentIndex];
+  const nextIndex = items.length > 0 ? (currentIndex + 1) % items.length : 0;
+  const nextItem = items[nextIndex];
+  const isPortrait = device?.orientation === 'portrait';
+
+  const resDims = useMemo(() => 
+    getResolutionDimensions(device?.resolution, isPortrait), 
+  [device?.resolution, isPortrait]);
+
+  const wrapperStyles = useMemo(() => {
+    if (!resDims) return {};
+    const { width, height } = resDims;
+    if (isPortrait) {
+      const scale = `min(calc(100vw / ${height}), calc(100vh / ${width}))`;
+      return {
+        width: `${width}px`,
+        height: `${height}px`,
+        transform: `rotate(-90deg) scale(${scale})`,
+        transformOrigin: 'center center',
+        flexShrink: 0,
+      };
+    } else {
+      const scale = `min(calc(100vw / ${width}), calc(100vh / ${height}))`;
+      return {
+        width: `${width}px`,
+        height: `${height}px`,
+        transform: `scale(${scale})`,
+        transformOrigin: 'center center',
+        flexShrink: 0,
+      };
+    }
+  }, [resDims, isPortrait]);
+
+  const transitionClass = useMemo(() => 
+    getAnimationClass(device?.transition), 
+  [device?.transition]);
+
   if (loading) {
     return <div className="fixed inset-0 bg-black flex items-center justify-center text-cyan-500 font-mono animate-pulse overflow-hidden">
       <style>{`html, body { overflow: hidden !important; background-color: black !important; margin: 0; padding: 0; }`}</style>
@@ -204,61 +266,6 @@ const Player = () => {
     </div>;
   }
 
-  const currentItem = items[currentIndex];
-  const isPortrait = device?.orientation === 'portrait';
-  
-  const getResolutionDimensions = (res, isPortrait) => {
-    switch(res) {
-      case '720p': return isPortrait ? { width: 720, height: 1280 } : { width: 1280, height: 720 };
-      case '1080p': return isPortrait ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 };
-      case '4k': return isPortrait ? { width: 2160, height: 3840 } : { width: 3840, height: 2160 };
-      default: return null;
-    }
-  };
-
-  const resDims = getResolutionDimensions(device?.resolution, isPortrait);
-
-  const getWrapperStyles = () => {
-    if (!resDims) return {};
-    const { width, height } = resDims;
-    if (isPortrait) {
-      // Render in landscape dimensions then rotate for portrait display
-      const scale = `min(calc(100vw / ${height}), calc(100vh / ${width}))`;
-      return {
-        width: `${width}px`,
-        height: `${height}px`,
-        transform: `rotate(-90deg) scale(${scale})`,
-        transformOrigin: 'center center',
-        flexShrink: 0,
-      };
-    } else {
-      const scale = `min(calc(100vw / ${width}), calc(100vh / ${height}))`;
-      return {
-        width: `${width}px`,
-        height: `${height}px`,
-        transform: `scale(${scale})`,
-        transformOrigin: 'center center',
-        flexShrink: 0,
-      };
-    }
-  };
-
-
-  const getAnimationClass = (transition) => {
-
-    switch (transition) {
-      case 'fade': return 'animate-fade-in';
-      case 'slide': return 'animate-slide-in';
-      case 'slide-up': return 'animate-slide-up';
-      case 'zoom': return 'animate-zoom-in';
-      case 'blur': return 'animate-blur-in';
-      case 'crt': return 'animate-crt-on';
-      case 'glitch': return 'animate-glitch';
-      case 'none': return '';
-      default: return 'animate-fade-in';
-    }
-  };
-  const transitionClass = getAnimationClass(device?.transition);
 
   return (
     <div className="fixed inset-0 bg-black overflow-hidden cursor-pointer flex items-center justify-center" onClick={handleStartFullscreen}>
@@ -269,8 +276,9 @@ const Player = () => {
             ? '' 
             : 'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ' + (isPortrait ? 'w-[100vh] h-[100vw] -rotate-90' : 'w-full h-full')
         }`}
-        style={getWrapperStyles()}
+        style={wrapperStyles}
       >
+
 
 
         
@@ -279,26 +287,40 @@ const Player = () => {
             key={`media-${currentIndex}-${playCount}`}
             ref={videoRef}
             src={MEDIA_BASE + currentItem.path}
-            className={`w-full h-full object-contain ${transitionClass}`}
+            className={`w-full h-full ${resDims ? 'object-contain' : 'object-cover'} ${transitionClass}`}
             autoPlay
             playsInline
             muted={device?.muted !== 0} 
             onEnded={handleVideoEnded}
             onError={handleVideoError}
           />
+
         ) : (
           <img 
             key={`media-${currentIndex}-${playCount}`}
             src={MEDIA_BASE + currentItem.path} 
             alt="signage" 
-            className={`w-full h-full object-contain ${transitionClass}`}
+            className={`w-full h-full ${resDims ? 'object-contain' : 'object-cover'} ${transitionClass}`}
           />
+
         )}
 
         {/* Text Overlays */}
         <TextOverlayRenderer overlays={overlays} />
+
+        {/* Predictive Preloading - Hidden from view, but warms up browser cache */}
+        {nextItem && nextItem.id !== currentItem.id && (
+          <div className="hidden pointer-events-none w-0 h-0 overflow-hidden" aria-hidden="true">
+            {nextItem.type === 'video' ? (
+              <video src={MEDIA_BASE + nextItem.path} preload="auto" muted />
+            ) : (
+              <img src={MEDIA_BASE + nextItem.path} loading="eager" alt="" />
+            )}
+          </div>
+        )}
       </div>
     </div>
+
   );
 };
 
