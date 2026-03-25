@@ -49,18 +49,20 @@ const Dashboard = () => {
 
   return (
     <div className="font-mono text-neutral-300 flex flex-col h-full">
-      <div className="flex items-center gap-3 mb-8 border-b border-neutral-800 pb-4 shrink-0">
-        <LayoutDashboard className="text-green-500" size={28} />
-        <h2 className="text-2xl font-bold tracking-widest text-neutral-100 uppercase">
-          Sys_Dashboard
-        </h2>
-        <div className="ml-auto flex items-center gap-2 text-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 sm:mb-8 border-b border-neutral-800 pb-4 shrink-0 px-1">
+        <div className="flex items-center gap-3">
+          <LayoutDashboard className="text-green-500" size={24} md={28} />
+          <h2 className="text-xl sm:text-2xl font-bold tracking-widest text-neutral-100 uppercase">
+            Sys_Dashboard
+          </h2>
+        </div>
+        <div className="sm:ml-auto flex items-center gap-2 text-[10px] sm:text-xs">
           <Activity size={14} className="text-green-500 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" />
-          <span className="text-green-500">REALTIME_METRICS</span>
+          <span className="text-green-500 tracking-tighter sm:tracking-normal">REALTIME_METRICS</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 shrink-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8 shrink-0">
         {cards.map((card, idx) => (
           <Link to={card.link} key={idx} className="block group">
             <div className={`bg-[#0a0a0a] p-6 border border-neutral-800 transition-all duration-300 relative overflow-hidden ${card.activeBorder}`}>

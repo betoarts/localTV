@@ -83,13 +83,15 @@ const ConfigSettings = () => {
   };
 
   return (
-    <div className="font-mono text-neutral-300 max-w-2xl">
+    <div className="font-mono text-neutral-300 max-w-full lg:max-w-2xl px-1">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-8 border-b border-neutral-800 pb-4">
-        <Settings className="text-amber-500" size={28} />
-        <h2 className="text-2xl font-bold tracking-widest text-neutral-100 uppercase">
-          SYS_CONFIG
-        </h2>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 sm:mb-8 border-b border-neutral-800 pb-4">
+        <div className="flex items-center gap-3">
+          <Settings className="text-amber-500" size={24} md={28} />
+          <h2 className="text-xl sm:text-2xl font-bold tracking-widest text-neutral-100 uppercase">
+            Sys_Config
+          </h2>
+        </div>
       </div>
 
       {/* Status Message */}

@@ -45,17 +45,17 @@ const MediaLibrary = () => {
   };
 
   return (
-    <div className="font-mono text-neutral-300 flex flex-col h-[calc(100vh-8rem)]">
-      <div className="flex justify-between items-center mb-6 pb-4 border-b border-neutral-800 shrink-0">
+    <div className="font-mono text-neutral-300 flex flex-col h-full">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 pb-4 border-b border-neutral-800 shrink-0 px-1 gap-4">
         <div className="flex items-center gap-3">
-          <Film className="text-fuchsia-500" size={28} />
-          <h2 className="text-2xl font-bold tracking-widest text-neutral-100 uppercase">
-            Media_Library
+          <Film className="text-fuchsia-500" size={24} md={28} />
+          <h2 className="text-xl sm:text-2xl font-bold tracking-widest text-neutral-100 uppercase">
+            Media_Lib
           </h2>
         </div>
         
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-2 text-xs mr-4">
+        <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
+          <div className="flex items-center gap-2 text-[10px] sm:text-xs">
             <Activity size={14} className={`text-fuchsia-500 ${uploading ? 'animate-spin' : ''}`} />
             <span className="text-fuchsia-500 uppercase">{uploading ? 'UPLOADING...' : 'AWAITING_DATA'}</span>
           </div>
@@ -70,10 +70,10 @@ const MediaLibrary = () => {
           <button
             onClick={() => fileInputRef.current.click()}
             disabled={uploading}
-            className="flex items-center gap-2 bg-fuchsia-600/20 text-fuchsia-500 border border-fuchsia-600/50 hover:bg-fuchsia-500 hover:text-[#050505] px-4 py-2 transition-colors disabled:opacity-50 uppercase text-xs font-bold tracking-widest"
+            className="flex items-center gap-2 bg-fuchsia-600/20 text-fuchsia-500 border border-fuchsia-600/50 hover:bg-fuchsia-500 hover:text-[#050505] px-4 py-3 sm:py-2 transition-colors disabled:opacity-50 uppercase text-[10px] sm:text-xs font-bold tracking-widest"
           >
             <UploadCloud size={16} />
-            {uploading ? 'UPLOADING_DATA...' : 'INGEST_ASSET'}
+            {uploading ? 'UPLOADING...' : 'INGEST'}
           </button>
         </div>
       </div>

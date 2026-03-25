@@ -139,22 +139,24 @@ const Playlists = () => {
   const selectedPlaylist = playlists.find(p => p.id === selectedPlaylistId);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] font-mono text-neutral-300">
-      <div className="flex items-center gap-3 mb-6">
-        <MonitorPlay className="text-green-500" size={28} />
-        <h2 className="text-2xl font-bold tracking-widest text-neutral-100 uppercase">
-          Playlist_Controller
-        </h2>
-        <div className="ml-auto flex items-center gap-2 text-xs">
+    <div className="flex flex-col h-full font-mono text-neutral-300">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 sm:mb-8 border-b border-neutral-800 pb-4 shrink-0 px-1">
+        <div className="flex items-center gap-3">
+          <MonitorPlay className="text-green-500" size={24} md={28} />
+          <h2 className="text-xl sm:text-2xl font-bold tracking-widest text-neutral-100 uppercase">
+            Playlist_Ctrl
+          </h2>
+        </div>
+        <div className="sm:ml-auto flex items-center gap-2 text-[10px] sm:text-xs">
           <Activity size={14} className="text-green-500 animate-pulse" />
           <span className="text-green-500">SYSTEM.SYNCED</span>
         </div>
       </div>
 
-      <div className="flex flex-1 panel-border overflow-hidden shadow-2xl shadow-green-900/10">
+      <div className="flex flex-col lg:flex-row flex-1 panel-border overflow-hidden shadow-2xl shadow-green-900/10 min-h-0">
         
         {/* Left Panel: Playlists List */}
-        <div className="w-1/3 lg:w-1/4 bg-[#050505] border-r border-neutral-800 flex flex-col relative">
+        <div className="w-full lg:w-1/4 bg-[#050505] border-b lg:border-b-0 lg:border-r border-neutral-800 flex flex-col relative shrink-0 max-h-[30vh] lg:max-h-full">
           <div className="absolute top-0 right-0 w-8 h-8 border-l border-b border-neutral-800 bg-[#0a0a0a]" />
           
           <div className="p-4 border-b border-neutral-800">
@@ -244,16 +246,16 @@ const Playlists = () => {
             </div>
           </div>
 
-          <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
             {/* Playlist Items - Central feed */}
-            <div className="flex-1 border-r border-neutral-800 overflow-y-auto p-4 md:p-6 bg-[#0a0a0a] relative">
+            <div className="flex-1 border-b sm:border-b-0 sm:border-r border-neutral-800 overflow-y-auto p-4 md:p-6 bg-[#0a0a0a] relative">
               <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none opacity-50" />
               
               <div className="relative z-10 space-y-3">
                 {playlistItems.length === 0 && (
-                  <div className="flex flex-col items-center justify-center p-12 text-neutral-600 border border-neutral-800 border-dashed mt-8">
+                  <div className="flex flex-col items-center justify-center p-8 sm:p-12 text-neutral-600 border border-neutral-800 border-dashed mt-4 sm:mt-8">
                     <Database size={32} className="mb-4 opacity-50" />
-                    <p className="text-xs uppercase tracking-widest">Target empty. Feed awaits data.</p>
+                    <p className="text-xs uppercase tracking-widest text-center px-4">Target empty. Feed awaits data.</p>
                   </div>
                 )}
                 {playlistItems.map((item, index) => (
@@ -263,7 +265,7 @@ const Playlists = () => {
                     onDragStart={(e) => handleDragStart(e, index)}
                     onDragOver={(e) => handleDragOver(e, index)}
                     onDragEnd={handleDragEnd}
-                    className={`flex items-center gap-3 bg-[#050505] border p-3 transition-colors group cursor-grab active:cursor-grabbing ${
+                    className={`flex items-center gap-2 sm:gap-3 bg-[#050505] border p-2 sm:p-3 transition-colors group cursor-grab active:cursor-grabbing ${
                       draggedItemIndex === index 
                         ? 'border-green-500 opacity-50 scale-[0.98]' 
                         : 'border-neutral-800 hover:border-neutral-600'
@@ -273,13 +275,13 @@ const Playlists = () => {
                       <GripVertical size={16} />
                     </div>
                     
-                    <span className="font-mono text-green-600/50 text-[10px] w-6 opacity-70 group-hover:opacity-100 transition-opacity">
+                    <span className="hidden xs:block font-mono text-green-600/50 text-[10px] w-6 opacity-70 group-hover:opacity-100 transition-opacity">
                       {String(index + 1).padStart(2, '0')}
                     </span>
                     
-                    <div className="flex-1 truncate text-xs uppercase text-neutral-300">
+                    <div className="flex-1 truncate text-[11px] sm:text-xs uppercase text-neutral-300">
                       {item.name} 
-                      <span className="text-neutral-600 ml-2 border border-neutral-700 px-1 py-0.5 text-[9px]">
+                      <span className="hidden sm:inline-block text-neutral-600 ml-2 border border-neutral-700 px-1 py-0.5 text-[9px]">
                         {item.type}
                       </span>
                     </div>
@@ -297,8 +299,8 @@ const Playlists = () => {
             </div>
 
             {/* Available Media List - Right Sidebar */}
-            <div className="w-64 bg-[#050505] overflow-y-auto relative flex flex-col">
-              <div className="p-4 border-b border-neutral-800 sticky top-0 bg-[#050505] z-10">
+            <div className="w-full sm:w-48 lg:w-64 bg-[#050505] overflow-y-auto relative flex flex-col max-h-[25vh] sm:max-h-full border-t sm:border-t-0 border-neutral-800">
+              <div className="p-3 sm:p-4 border-b border-neutral-800 sticky top-0 bg-[#050505] z-10">
                  <h4 className="text-[10px] tracking-widest text-neutral-500 uppercase flex items-center gap-2">
                    <Database size={12} />
                    Registry

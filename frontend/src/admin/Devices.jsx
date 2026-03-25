@@ -69,35 +69,35 @@ const Devices = () => {
 
   return (
     <div className="font-mono text-neutral-300">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-neutral-800 pb-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-6 border-b border-neutral-800 pb-6 px-1">
         <div className="flex items-center gap-3">
-          <RadioReceiver className="text-cyan-500" size={28} />
-          <h2 className="text-2xl font-bold tracking-widest text-neutral-100 uppercase">
+          <RadioReceiver className="text-cyan-500" size={24} md={28} />
+          <h2 className="text-xl sm:text-2xl font-bold tracking-widest text-neutral-100 uppercase">
             Devices_Ctrl
           </h2>
         </div>
         
-        <form onSubmit={handleCreateDevice} className="flex gap-2 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
+        <form onSubmit={handleCreateDevice} className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+          <div className="relative flex-1 sm:w-64">
              <Terminal size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600" />
              <input
                type="text"
                value={newDeviceName}
                onChange={(e) => setNewDeviceName(e.target.value)}
                placeholder="NEW_DEVICE_ID"
-               className="w-full bg-[#0a0a0a] border border-neutral-700 text-neutral-300 pl-9 pr-3 py-2 text-xs focus:outline-none focus:border-cyan-500 transition-colors uppercase placeholder:text-neutral-600"
+               className="w-full bg-[#0a0a0a] border border-neutral-700 text-neutral-300 pl-9 pr-3 py-3 sm:py-2 text-xs focus:outline-none focus:border-cyan-500 transition-colors uppercase placeholder:text-neutral-600"
              />
           </div>
           <button
             type="submit"
-            className="bg-cyan-600/20 text-cyan-400 border border-cyan-500/50 hover:bg-cyan-500 hover:text-[#050505] px-4 py-2 transition-colors uppercase text-xs font-bold tracking-widest shrink-0"
+            className="bg-cyan-600/20 text-cyan-400 border border-cyan-500/50 hover:bg-cyan-500 hover:text-[#050505] px-4 py-3 sm:py-2 transition-colors uppercase text-xs font-bold tracking-widest shrink-0"
           >
             INIT_LINK
           </button>
         </form>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
         {devices.map((device) => {
           const isOnline = device.status === 'online';
           const lastSeenTime = new Date(device.last_seen).getTime();

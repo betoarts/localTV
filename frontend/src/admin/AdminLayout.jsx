@@ -1,15 +1,20 @@
+import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MonitorPlay, Film, RadioReceiver, Activity, Type, LogOut, Settings } from 'lucide-react';
+import { LayoutDashboard, Film, MonitorPlay, RadioReceiver, Activity, Type, LogOut, Settings, Menu, X } from 'lucide-react';
 
 
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('admin_token');
     navigate('/login');
   };
+
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const closeSidebar = () => setIsSidebarOpen(false);
 
   const navItems = [
     { name: 'DASHBOARD', path: '/admin', icon: <LayoutDashboard size={18} /> },
@@ -18,16 +23,43 @@ const AdminLayout = () => {
     { name: 'DEVICES', path: '/admin/devices', icon: <RadioReceiver size={18} /> },
     { name: 'OVERLAYS', path: '/admin/overlays', icon: <Type size={18} /> },
     { name: 'SETTINGS', path: '/admin/settings', icon: <Settings size={18} /> },
-
   ];
 
   return (
-    <div className="min-h-screen bg-[#050505] text-neutral-300 flex overflow-hidden font-sans">
-      {/* Sidebar - Command Center Style */}
-      <aside className="w-64 bg-[#0a0a0a] border-r border-neutral-800 flex flex-col relative z-10">
+    <div className="min-h-screen bg-[#050505] text-neutral-300 flex flex-col md:flex-row overflow-hidden font-sans">
+      {/* Mobile Header */}
+      <header className="md:hidden h-16 flex items-center justify-between px-4 bg-[#0a0a0a] border-b border-neutral-800 z-50">
+        <div className="flex items-center gap-2">
+          <Activity className="text-green-500" size={20} />
+          <h1 className="text-xs font-mono font-bold text-neutral-100 tracking-widest">
+            CONTROL_TV<span className="text-green-500">_</span>
+          </h1>
+        </div>
+        <button 
+          onClick={toggleSidebar}
+          className="p-2 text-neutral-400 hover:text-white"
+        >
+          {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </header>
 
-        {/* Brand Header */}
-        <div className="h-20 flex items-center px-6 border-b border-neutral-800 bg-[#050505]">
+      {/* Sidebar Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden animate-fade-in"
+          onClick={closeSidebar}
+        />
+      )}
+
+      {/* Sidebar - Command Center Style */}
+      <aside className={`
+        fixed inset-y-0 left-0 w-64 bg-[#0a0a0a] border-r border-neutral-800 flex flex-col z-50 transition-transform duration-300 ease-in-out
+        md:relative md:translate-x-0
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:flex'}
+      `}>
+
+        {/* Brand Header - Desktop Only */}
+        <div className="hidden md:flex h-20 items-center px-6 border-b border-neutral-800 bg-[#050505]">
           <div className="flex items-center gap-3">
             <Activity className="text-green-500 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" size={24} />
             <h1 className="text-sm font-mono font-bold text-neutral-100 tracking-widest">
@@ -49,6 +81,7 @@ const AdminLayout = () => {
               <Link
                 key={item.name}
                 to={item.path}
+                onClick={closeSidebar}
                 className={`relative flex items-center gap-3 px-4 py-3 text-sm font-mono tracking-wide transition-all duration-200 group ${isActive
                   ? 'text-green-400 bg-neutral-900/50'
                   : 'text-neutral-500 hover:text-neutral-200 hover:bg-neutral-900/30'
@@ -95,7 +128,7 @@ const AdminLayout = () => {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-neutral-900/20 via-[#050505] to-[#050505]">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDIiLz4KPC9zdmc+')] opacity-20 z-0 pointer-events-none" />
-        <div className="flex-1 overflow-y-auto relative z-10 p-6 md:p-8">
+        <div className="flex-1 overflow-y-auto relative z-10 p-4 sm:p-6 md:p-8">
           <Outlet />
         </div>
       </main>

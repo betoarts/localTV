@@ -217,23 +217,23 @@ const TextOverlays = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-mono text-neutral-300">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-6 px-1">
         <div>
-          <h2 className="text-2xl font-mono font-bold text-neutral-100 tracking-wider flex items-center gap-3">
-            <Type className="text-green-500" size={24} />
-            TEXT_OVERLAYS<span className="text-green-500">_</span>
+          <h2 className="text-xl sm:text-2xl font-bold text-neutral-100 tracking-widest flex items-center gap-3 uppercase">
+            <Type className="text-green-500" size={24} md={28} />
+            Overlays_Ctrl
           </h2>
-          <p className="text-xs font-mono text-neutral-500 mt-1">
-            Mensagens e logos sobrepostos aos vídeos com animações e efeitos
+          <p className="text-[10px] text-neutral-500 mt-1 uppercase tracking-tighter sm:tracking-normal">
+            Visual Layer Management • Real-time Broadcast Injection
           </p>
         </div>
         <button
           onClick={() => { setShowForm(true); setEditingId(null); setForm({ ...DEFAULT_FORM }); setBgOpacity(50); }}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-black font-mono text-sm px-4 py-2.5 transition-all duration-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+          className="flex items-center justify-center gap-2 bg-green-600/20 text-green-400 border border-green-500/50 hover:bg-green-500 hover:text-[#050505] px-4 py-3 sm:py-2.5 transition-all text-xs font-bold tracking-widest uppercase"
         >
-          <Plus size={16} /> NOVO OVERLAY
+          <Plus size={16} /> NEW_OVERLAY
         </button>
       </div>
 
@@ -639,58 +639,60 @@ const TextOverlays = () => {
         {overlays.length === 0 && !showForm && (
           <div className="panel-border p-12 flex flex-col items-center justify-center text-center">
             <Type className="text-neutral-700 mb-4" size={48} />
-            <p className="text-neutral-500 font-mono text-sm">Nenhum overlay criado</p>
-            <p className="text-neutral-600 font-mono text-xs mt-1">Clique em "NOVO OVERLAY" para começar</p>
+            <p className="text-neutral-500 font-mono text-sm uppercase tracking-widest">Nenhum overlay criado</p>
+            <p className="text-neutral-600 font-mono text-[10px] mt-2 uppercase tracking-tight">Clique em "NOVO OVERLAY" para iniciar a transmissão</p>
           </div>
         )}
 
         {overlays.map(overlay => (
           <div
             key={overlay.id}
-            className={`panel-border p-4 flex items-center justify-between gap-4 group transition-all duration-200 hover:border-neutral-700 ${!overlay.is_active ? 'opacity-50' : ''
+            className={`panel-border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group transition-all duration-200 hover:border-neutral-700 ${!overlay.is_active ? 'opacity-50' : ''
               }`}
           >
-            <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
               {overlay.image_path && (
                 <img
                   src={MEDIA_BASE + overlay.image_path}
                   alt=""
-                  className="h-8 w-8 object-contain bg-neutral-800 border border-neutral-700 p-0.5 shrink-0"
+                  className="h-10 w-10 sm:h-8 sm:w-8 object-contain bg-neutral-800 border border-neutral-700 p-0.5 shrink-0"
                 />
               )}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  {overlay.target_type === 'device'
-                    ? <Monitor size={12} className="text-cyan-500 shrink-0" />
-                    : <ListVideo size={12} className="text-amber-500 shrink-0" />
-                  }
-                  <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider">
-                    {getTargetName(overlay)}
-                  </span>
-                  <span className="text-[10px] font-mono text-neutral-700">|</span>
-                  <span className="text-[10px] font-mono text-neutral-600">{overlay.position}</span>
-                  <span className="text-[10px] font-mono text-neutral-700">|</span>
-                  <span className="text-[10px] font-mono text-green-600">{overlay.animation}</span>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1 font-mono text-[10px]">
+                  <div className="flex items-center gap-1">
+                    {overlay.target_type === 'device'
+                      ? <Monitor size={12} className="text-cyan-500 shrink-0" />
+                      : <ListVideo size={12} className="text-amber-500 shrink-0" />
+                    }
+                    <span className="text-neutral-500 uppercase tracking-wider truncate max-w-[120px] sm:max-w-none">
+                      {getTargetName(overlay)}
+                    </span>
+                  </div>
+                  <span className="hidden xs:inline text-neutral-700">|</span>
+                  <span className="text-neutral-600 uppercase tracking-tighter">{overlay.position}</span>
+                  <span className="hidden xs:inline text-neutral-700">|</span>
+                  <span className="text-green-600 uppercase tracking-tighter">{overlay.animation}</span>
                   {overlay.image_path && (
                     <>
-                      <span className="text-[10px] font-mono text-neutral-700">|</span>
+                      <span className="hidden xs:inline text-neutral-700">|</span>
                       <Image size={10} className="text-cyan-500" />
                     </>
                   )}
                   {overlay.duration_seconds > 0 && (
                     <>
-                      <span className="text-[10px] font-mono text-neutral-700">|</span>
-                      <span className="text-[10px] font-mono text-neutral-500">{overlay.duration_seconds}s</span>
+                      <span className="hidden xs:inline text-neutral-700">|</span>
+                      <span className="text-neutral-500">{overlay.duration_seconds}S</span>
                     </>
                   )}
                 </div>
-                <p className="text-sm font-mono text-neutral-200 truncate">
-                  {overlay.text || (overlay.image_path ? '[ Imagem ]' : '—')}
+                <p className="text-xs sm:text-sm font-mono text-neutral-200 truncate uppercase">
+                  {overlay.text || (overlay.image_path ? '[ IMAGE_DATA_INJECTED ]' : '—')}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center justify-end gap-1 shrink-0 border-t sm:border-t-0 border-neutral-800/50 pt-2 sm:pt-0">
               <button
                 onClick={() => handleToggleActive(overlay)}
                 className={`p-2 transition-colors ${overlay.is_active ? 'text-green-500 hover:text-green-400' : 'text-red-500 hover:text-red-400'
