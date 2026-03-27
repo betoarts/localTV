@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-export const API_BASE = import.meta.env.DEV ? `http://${window.location.hostname}:3000` : '';
+export const API_BASE = import.meta.env.DEV 
+  ? `http://${window.location.hostname}:3000` 
+  : window.location.origin;
 const API_URL = `${API_BASE}/api`;
 
 export const uploadMedia = (file) => {

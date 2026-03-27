@@ -140,6 +140,7 @@ const Player = () => {
     
     if (currentItem.type === 'image' || currentItem.type === 'template') {
       const waitTime = (currentItem.duration || currentItem.default_duration || 10) * 1000;
+      console.log(`[PLAYER] Scheduled next item in ${waitTime}ms for type: ${currentItem.type}`);
       
       timeoutRef.current = setTimeout(() => {
         handleNextItem();
@@ -152,11 +153,14 @@ const Player = () => {
   }, [currentIndex, items, playCount, deviceId, device?.is_playing]);
 
   const handleNextItem = () => {
+    console.log('[PLAYER] Transitioning to next item...');
     setPlayCount(c => c + 1);
     setCurrentIndex(prev => {
       const len = itemsRef.current.length;
       if (len === 0) return 0;
-      return (prev + 1) % len;
+      const nextIdx = (prev + 1) % len;
+      console.log(`[PLAYER] Index updated: ${prev} -> ${nextIdx}`);
+      return nextIdx;
     });
   };
 
@@ -165,23 +169,24 @@ const Player = () => {
   useEffect(() => {
     if (videoRef.current && currentItemRef?.type === 'video') {
       const isMuted = device?.muted !== 0;
+      console.log(`[PLAYER] Initializing video playback. Path: ${currentItemRef.path}, Muted: ${isMuted}`);
+      
       videoRef.current.muted = isMuted;
       videoRef.current.defaultMuted = isMuted;
       
       const playPromise = videoRef.current.play();
       if (playPromise !== undefined) {
         playPromise.catch(err => {
-          console.warn('Playback blocked:', err);
+          console.warn('[PLAYER] Playback blocked:', err);
+          // If unmuted failed, try muted as fallback
           if (!isMuted) {
-            // Browser blocked audio autoplay, fallback to muted to prevent freezing
+            console.log('[PLAYER] Falling back to muted playback...');
             videoRef.current.muted = true;
             videoRef.current.play().catch(e => {
-              console.error('Playback completely blocked:', e);
-              // Force next slide to prevent playlist from freezing forever
+              console.error('[PLAYER] Playback completely blocked:', e);
               handleNextItem();
             });
           } else {
-             // Blocked even if muted - force next slide
              handleNextItem();
           }
         });

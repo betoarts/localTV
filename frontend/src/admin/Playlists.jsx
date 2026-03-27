@@ -64,7 +64,6 @@ const Playlists = () => {
     try {
       await addPlaylistItem(selectedPlaylistId, {
         media_id: mediaId,
-        item_order: playlistItems.length + 1,
         duration: null
       });
       loadPlaylistItems(selectedPlaylistId);
@@ -79,7 +78,6 @@ const Playlists = () => {
     try {
       await addPlaylistItem(selectedPlaylistId, {
         template_id: templateId,
-        item_order: playlistItems.length + 1,
         duration: 15,
         data_json: "{}"
       });

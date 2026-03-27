@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { API_BASE } from '../api';
+import TemplateRenderer from './TemplateRenderer';
 
 const MEDIA_BASE = API_BASE;
 
@@ -100,14 +101,32 @@ const OverlayItem = ({ overlay }) => {
 
   const content = (
     <>
-      {hasImage && (
-        <img
-          src={MEDIA_BASE + overlay.image_path}
-          alt=""
-          style={imageStyle}
-        />
+      {overlay.template_id ? (
+        <div style={{ width: '100%', height: '100%' }}>
+          <TemplateRenderer 
+            layout={overlay.template_layout} 
+            data={(() => {
+              try {
+                return typeof overlay.data_json === 'string' ? JSON.parse(overlay.data_json || '{}') : (overlay.data_json || {});
+              } catch (e) {
+                console.error("Error parsing overlay data_json:", e);
+                return {};
+              }
+            })()} 
+          />
+        </div>
+      ) : (
+        <>
+          {hasImage && (
+            <img
+              src={MEDIA_BASE + overlay.image_path}
+              alt=""
+              style={imageStyle}
+            />
+          )}
+          {hasText && overlay.text}
+        </>
       )}
-      {hasText && overlay.text}
     </>
   );
 
@@ -121,9 +140,13 @@ const OverlayItem = ({ overlay }) => {
     );
   }
 
+  const positionClasses = overlay.template_id 
+    ? 'inset-0' 
+    : getPositionClasses(overlay.position);
+
   return (
-    <div className={`absolute ${getPositionClasses(overlay.position)} z-50`}>
-      <div style={containerStyle}>
+    <div className={`absolute ${positionClasses} z-50 ${overlay.template_id ? 'pointer-events-none' : ''}`}>
+      <div style={overlay.template_id ? { width: '100%', height: '100%' } : containerStyle}>
         {content}
       </div>
     </div>

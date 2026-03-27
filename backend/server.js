@@ -143,7 +143,7 @@ app.get('/api/playlists', (req, res) => {
 app.get('/api/playlists/:id/items', (req, res) => {
   const query = `
     SELECT p.id, p.item_order, p.duration, p.data_json,
-           m.filename as media_filename, m.type as media_type, m.path as media_path, m.name as media_name,
+           m.filename as media_filename, m.type as media_type, m.path as path, m.name as media_name,
            t.name as template_name, t.json_layout as template_layout,
            CASE 
              WHEN p.template_id IS NOT NULL THEN 'template'
@@ -201,9 +201,13 @@ app.delete('/api/playlists/:id', (req, res) => {
 });
 
 app.post('/api/playlists/:id/items', (req, res) => {
-  const { media_id, template_id, item_order, duration, data_json } = req.body;
-  const query = 'INSERT INTO playlist_items (playlist_id, media_id, template_id, item_order, duration, data_json) VALUES (?, ?, ?, ?, ?, ?)';
-  db.run(query, [req.params.id, media_id || null, template_id || null, item_order, duration || null, data_json || null], function (err) {
+  const { media_id, template_id, duration, data_json } = req.body;
+  // Automatically find the next item_order for this specific playlist
+  const query = `
+    INSERT INTO playlist_items (playlist_id, media_id, template_id, duration, data_json, item_order) 
+    VALUES (?, ?, ?, ?, ?, (SELECT IFNULL(MAX(item_order), 0) + 1 FROM playlist_items WHERE playlist_id = ?))
+  `;
+  db.run(query, [req.params.id, media_id || null, template_id || null, duration || null, data_json || null, req.params.id], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     
     // Notify devices that are using this playlist
@@ -241,7 +245,10 @@ app.put('/api/playlists/:id/items/reorder', (req, res) => {
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     items.forEach((itemId, index) => {
-      db.run('UPDATE playlist_items SET item_order = ? WHERE id = ? AND playlist_id = ?', [index + 1, itemId, req.params.id]);
+      // Re-map index (0-based) to order (1-based)
+      db.run('UPDATE playlist_items SET item_order = ? WHERE id = ? AND playlist_id = ?', [index + 1, itemId, req.params.id], (err) => {
+        if (err) console.error(`Failed to update order for item ${itemId}:`, err.message);
+      });
     });
     db.run('COMMIT', (err) => {
       if (err) {
@@ -346,21 +353,29 @@ app.delete('/api/templates/:id', (req, res) => {
 
 // ===== TEXT OVERLAYS API =====
 app.get('/api/overlays', (req, res) => {
-  db.all('SELECT * FROM text_overlays ORDER BY created_at DESC', [], (err, rows) => {
+  const query = `
+    SELECT o.*, t.name as template_name, t.json_layout as template_layout
+    FROM text_overlays o
+    LEFT JOIN templates t ON o.template_id = t.id
+    ORDER BY o.created_at DESC
+  `;
+  db.all(query, [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
 app.get('/api/overlays/target/:type/:id', (req, res) => {
-  db.all(
-    'SELECT * FROM text_overlays WHERE target_type = ? AND target_id = ? AND is_active = 1',
-    [req.params.type, req.params.id],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(rows);
-    }
-  );
+  const query = `
+    SELECT o.*, t.name as template_name, t.json_layout as template_layout
+    FROM text_overlays o
+    LEFT JOIN templates t ON o.template_id = t.id
+    WHERE o.target_type = ? AND o.target_id = ? AND o.is_active = 1
+  `;
+  db.all(query, [req.params.type, req.params.id], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
 });
 
 app.post('/api/overlays/upload-image', upload.single('image'), (req, res) => {
@@ -373,18 +388,19 @@ app.post('/api/overlays', (req, res) => {
   const {
     text, target_type, target_id, position, animation,
     font_size, font_color, bg_color, bg_blur, font_weight,
-    text_shadow, border, duration_seconds, is_active, image_path, image_size
+    text_shadow, border, duration_seconds, is_active, image_path, image_size,
+    template_id, data_json
   } = req.body;
 
   const query = `INSERT INTO text_overlays 
-    (text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    (text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size, template_id, data_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
   db.run(query, [
     text || '', target_type || 'device', target_id, position || 'bottom-bar', animation || 'none',
     font_size || 24, font_color || '#FFFFFF', bg_color || '#00000080', bg_blur || 0,
     font_weight || 'normal', text_shadow || 0, border || 0, duration_seconds || 0, is_active !== undefined ? is_active : 1,
-    image_path || null, image_size || 100
+    image_path || null, image_size || 100, template_id || null, data_json || null
   ], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     io.emit('overlays_updated');
@@ -396,21 +412,22 @@ app.put('/api/overlays/:id', (req, res) => {
   const {
     text, target_type, target_id, position, animation,
     font_size, font_color, bg_color, bg_blur, font_weight,
-    text_shadow, border, duration_seconds, is_active, image_path, image_size
+    text_shadow, border, duration_seconds, is_active, image_path, image_size,
+    template_id, data_json
   } = req.body;
 
   const query = `UPDATE text_overlays SET 
     text = ?, target_type = ?, target_id = ?, position = ?, animation = ?,
     font_size = ?, font_color = ?, bg_color = ?, bg_blur = ?, font_weight = ?,
     text_shadow = ?, border = ?, duration_seconds = ?, is_active = ?,
-    image_path = ?, image_size = ?
+    image_path = ?, image_size = ?, template_id = ?, data_json = ?
     WHERE id = ?`;
 
   db.run(query, [
     text, target_type, target_id, position, animation,
     font_size, font_color, bg_color, bg_blur, font_weight,
     text_shadow, border, duration_seconds, is_active,
-    image_path || null, image_size || 100, req.params.id
+    image_path || null, image_size || 100, template_id || null, data_json || null, req.params.id
   ], (err) => {
     if (err) return res.status(500).json({ error: err.message });
     io.emit('overlays_updated');
@@ -497,9 +514,9 @@ app.post('/api/config/import', (req, res) => {
     // Re-insert overlays
     (text_overlays || []).forEach(o => {
       db.run(
-        `INSERT INTO text_overlays (id, text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [o.id, o.text, o.target_type, o.target_id, o.position, o.animation, o.font_size, o.font_color, o.bg_color, o.bg_blur, o.font_weight, o.text_shadow, o.border, o.duration_seconds, o.is_active, o.image_path, o.image_size]
+        `INSERT INTO text_overlays (id, text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size, template_id, data_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [o.id, o.text, o.target_type, o.target_id, o.position, o.animation, o.font_size, o.font_color, o.bg_color, o.bg_blur, o.font_weight, o.text_shadow, o.border, o.duration_seconds, o.is_active, o.image_path, o.image_size, o.template_id, o.data_json]
       );
     });
 

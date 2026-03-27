@@ -110,12 +110,17 @@ const initDb = () => {
       border INTEGER DEFAULT 0,
       duration_seconds INTEGER DEFAULT 0,
       is_active INTEGER DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      template_id INTEGER,
+      data_json TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(template_id) REFERENCES templates(id)
     )`);
 
     // Gracefully add image columns to text_overlays
     db.run("ALTER TABLE text_overlays ADD COLUMN image_path TEXT DEFAULT NULL", (err) => {});
     db.run("ALTER TABLE text_overlays ADD COLUMN image_size INTEGER DEFAULT 100", (err) => {});
+    db.run("ALTER TABLE text_overlays ADD COLUMN template_id INTEGER", (err) => {});
+    db.run("ALTER TABLE text_overlays ADD COLUMN data_json TEXT", (err) => {});
 
     // --- Performance Optimization Indexes ---
     db.run("CREATE INDEX IF NOT EXISTS idx_devices_playlist ON devices(playlist_id)");
