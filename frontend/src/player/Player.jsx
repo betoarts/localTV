@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { getDevice, getPlaylistItems, getOverlaysByTarget, API_BASE } from '../api';
 import TextOverlayRenderer from './TextOverlayRenderer';
+import TemplateRenderer from './TemplateRenderer';
 
 const SOCKET_URL = API_BASE || undefined;
 const MEDIA_BASE = API_BASE;
@@ -137,7 +138,7 @@ const Player = () => {
       socketRef.current.emit('now_playing', { deviceId, media: currentItem });
     }
     
-    if (currentItem.type === 'image') {
+    if (currentItem.type === 'image' || currentItem.type === 'template') {
       const waitTime = (currentItem.duration || currentItem.default_duration || 10) * 1000;
       
       timeoutRef.current = setTimeout(() => {
@@ -295,6 +296,13 @@ const Player = () => {
             onError={handleVideoError}
           />
 
+        ) : currentItem.type === 'template' ? (
+          <div key={`template-${currentIndex}-${playCount}`} className={`w-full h-full ${transitionClass}`}>
+             <TemplateRenderer 
+                layout={currentItem.template_layout} 
+                data={currentItem.data_json ? JSON.parse(currentItem.data_json) : {}} 
+             />
+          </div>
         ) : (
           <img 
             key={`media-${currentIndex}-${playCount}`}

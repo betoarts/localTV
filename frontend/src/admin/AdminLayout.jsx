@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Film, MonitorPlay, RadioReceiver, Activity, Type, LogOut, Settings, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Film, MonitorPlay, RadioReceiver, Activity, Type, LogOut, Settings, Menu, X, Layout } from 'lucide-react';
 
 
 const AdminLayout = () => {
@@ -20,6 +20,7 @@ const AdminLayout = () => {
     { name: 'DASHBOARD', path: '/admin', icon: <LayoutDashboard size={18} /> },
     { name: 'MEDIA_LIB', path: '/admin/media', icon: <Film size={18} /> },
     { name: 'PLAYLISTS', path: '/admin/playlists', icon: <MonitorPlay size={18} /> },
+    { name: 'TEMPLATES', path: '/admin/templates', icon: <Layout size={18} /> },
     { name: 'DEVICES', path: '/admin/devices', icon: <RadioReceiver size={18} /> },
     { name: 'OVERLAYS', path: '/admin/overlays', icon: <Type size={18} /> },
     { name: 'SETTINGS', path: '/admin/settings', icon: <Settings size={18} /> },

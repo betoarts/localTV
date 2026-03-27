@@ -142,9 +142,20 @@ app.get('/api/playlists', (req, res) => {
 
 app.get('/api/playlists/:id/items', (req, res) => {
   const query = `
-    SELECT p.id, p.item_order, p.duration, m.filename, m.type, m.path, m.duration as default_duration, m.name
+    SELECT p.id, p.item_order, p.duration, p.data_json,
+           m.filename as media_filename, m.type as media_type, m.path as media_path, m.name as media_name,
+           t.name as template_name, t.json_layout as template_layout,
+           CASE 
+             WHEN p.template_id IS NOT NULL THEN 'template'
+             ELSE m.type 
+           END as type,
+           CASE
+             WHEN p.template_id IS NOT NULL THEN t.name
+             ELSE m.name
+           END as name
     FROM playlist_items p
-    JOIN media m ON p.media_id = m.id
+    LEFT JOIN media m ON p.media_id = m.id
+    LEFT JOIN templates t ON p.template_id = t.id
     WHERE p.playlist_id = ?
     ORDER BY p.item_order ASC
   `;
@@ -190,9 +201,9 @@ app.delete('/api/playlists/:id', (req, res) => {
 });
 
 app.post('/api/playlists/:id/items', (req, res) => {
-  const { media_id, item_order, duration } = req.body;
-  const query = 'INSERT INTO playlist_items (playlist_id, media_id, item_order, duration) VALUES (?, ?, ?, ?)';
-  db.run(query, [req.params.id, media_id, item_order, duration || null], function (err) {
+  const { media_id, template_id, item_order, duration, data_json } = req.body;
+  const query = 'INSERT INTO playlist_items (playlist_id, media_id, template_id, item_order, duration, data_json) VALUES (?, ?, ?, ?, ?, ?)';
+  db.run(query, [req.params.id, media_id || null, template_id || null, item_order, duration || null, data_json || null], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     
     // Notify devices that are using this playlist
@@ -208,6 +219,19 @@ app.delete('/api/playlists/:playId/items/:itemId', (req, res) => {
     io.emit('playlist_updated', req.params.playId);
     res.json({ success: true });
   });
+});
+
+app.put('/api/playlists/:playId/items/:itemId', (req, res) => {
+  const { duration, data_json } = req.body;
+  db.run(
+    'UPDATE playlist_items SET duration = ?, data_json = ? WHERE id = ? AND playlist_id = ?',
+    [duration, data_json, req.params.itemId, req.params.playId],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      io.emit('playlist_updated', req.params.playId);
+      res.json({ success: true });
+    }
+  );
 });
 
 app.put('/api/playlists/:id/items/reorder', (req, res) => {
@@ -285,6 +309,37 @@ app.delete('/api/devices/:id', (req, res) => {
   db.run('DELETE FROM devices WHERE id = ?', [req.params.id], (err) => {
     if (err) return res.status(500).json({ error: err.message });
     io.emit('devices_updated');
+    res.json({ success: true });
+  });
+});
+
+// ===== TEMPLATES API =====
+app.get('/api/templates', (req, res) => {
+  db.all('SELECT * FROM templates ORDER BY created_at DESC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.post('/api/templates', (req, res) => {
+  const { name, json_layout } = req.body;
+  db.run('INSERT INTO templates (name, json_layout) VALUES (?, ?)', [name, json_layout], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ id: this.lastID, name, json_layout });
+  });
+});
+
+app.put('/api/templates/:id', (req, res) => {
+  const { name, json_layout } = req.body;
+  db.run('UPDATE templates SET name = ?, json_layout = ? WHERE id = ?', [name, json_layout, req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+app.delete('/api/templates/:id', (req, res) => {
+  db.run('DELETE FROM templates WHERE id = ?', [req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true });
   });
 });
@@ -376,7 +431,7 @@ app.delete('/api/overlays/:id', (req, res) => {
 app.get('/api/config/export', (req, res) => {
   db.serialize(() => {
     const result = {};
-    const tables = ['devices', 'playlists', 'playlist_items', 'media', 'text_overlays'];
+    const tables = ['devices', 'playlists', 'playlist_items', 'media', 'templates', 'text_overlays'];
     let done = 0;
 
     tables.forEach(table => {
@@ -426,8 +481,16 @@ app.post('/api/config/import', (req, res) => {
     // Re-insert playlist items
     (playlist_items || []).forEach(i => {
       db.run(
-        'INSERT INTO playlist_items (id, playlist_id, media_id, item_order, duration) VALUES (?, ?, ?, ?, ?)',
-        [i.id, i.playlist_id, i.media_id, i.item_order, i.duration]
+        'INSERT INTO playlist_items (id, playlist_id, media_id, template_id, item_order, duration, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [i.id, i.playlist_id, i.media_id, i.template_id, i.item_order, i.duration, i.data_json]
+      );
+    });
+
+    // Re-insert templates
+    (req.body.templates || []).forEach(t => {
+      db.run(
+        'INSERT INTO templates (id, name, json_layout) VALUES (?, ?, ?)',
+        [t.id, t.name, t.json_layout]
       );
     });
 

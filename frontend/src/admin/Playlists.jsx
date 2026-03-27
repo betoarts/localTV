@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getPlaylists, createPlaylist, updatePlaylist, deletePlaylist, getMedia, getPlaylistItems, addPlaylistItem, removePlaylistItem, reorderPlaylistItems } from '../api';
-import { Plus, Trash2, GripVertical, Terminal, MonitorPlay, Database, Activity, Edit2, Save, X } from 'lucide-react';
+import { getPlaylists, createPlaylist, updatePlaylist, deletePlaylist, getMedia, getPlaylistItems, addPlaylistItem, removePlaylistItem, reorderPlaylistItems, getTemplates, updatePlaylistItem } from '../api';
+import { Plus, Trash2, GripVertical, Terminal, MonitorPlay, Database, Activity, Edit2, Save, X, Layout, Code } from 'lucide-react';
 
 const Playlists = () => {
   const [playlists, setPlaylists] = useState([]);
@@ -11,10 +11,17 @@ const Playlists = () => {
   const [editingPlaylistId, setEditingPlaylistId] = useState(null);
   const [editingName, setEditingName] = useState('');
   const [draggedItemIndex, setDraggedItemIndex] = useState(null);
+  const [templates, setTemplates] = useState([]);
+  const [activeTab, setActiveTab] = useState('media');
+  const [editingItemData, setEditingItemData] = useState(null);
 
   useEffect(() => {
     loadPlaylists();
     getMedia().then(setMedia).catch(console.error);
+    getTemplates().then(data => {
+      if (Array.isArray(data)) setTemplates(data);
+      else setTemplates([]);
+    }).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -64,6 +71,22 @@ const Playlists = () => {
     } catch (err) {
       console.error(err);
       alert('Error adding media');
+    }
+  };
+
+  const handleAddTemplateToPlaylist = async (templateId) => {
+    if (!selectedPlaylistId) return;
+    try {
+      await addPlaylistItem(selectedPlaylistId, {
+        template_id: templateId,
+        item_order: playlistItems.length + 1,
+        duration: 15,
+        data_json: "{}"
+      });
+      loadPlaylistItems(selectedPlaylistId);
+    } catch (err) {
+      console.error(err);
+      alert('Error adding template');
     }
   };
 
@@ -285,6 +308,16 @@ const Playlists = () => {
                         {item.type}
                       </span>
                     </div>
+
+                    {item.type === 'template' && (
+                      <button
+                        onClick={() => setEditingItemData(item)}
+                        className="text-green-500 hover:bg-green-500/10 border border-green-500/30 p-1.5 transition-all"
+                        title="Configure Data"
+                      >
+                        <Code size={14} />
+                      </button>
+                    )}
                     
                     <button
                       onClick={() => handleRemoveItem(item.id)}
@@ -298,39 +331,113 @@ const Playlists = () => {
               </div>
             </div>
 
-            {/* Available Media List - Right Sidebar */}
-            <div className="w-full sm:w-48 lg:w-64 bg-[#050505] overflow-y-auto relative flex flex-col max-h-[25vh] sm:max-h-full border-t sm:border-t-0 border-neutral-800">
-              <div className="p-3 sm:p-4 border-b border-neutral-800 sticky top-0 bg-[#050505] z-10">
-                 <h4 className="text-[10px] tracking-widest text-neutral-500 uppercase flex items-center gap-2">
-                   <Database size={12} />
-                   Registry
-                 </h4>
+            {/* Available Media/Templates List - Right Sidebar */}
+            <div className="w-full sm:w-48 lg:w-64 bg-[#050505] overflow-y-auto relative flex flex-col max-h-[40vh] sm:max-h-full border-t sm:border-t-0 border-neutral-800">
+              <div className="flex border-b border-neutral-800 sticky top-0 bg-[#050505] z-10">
+                 <button 
+                  onClick={() => setActiveTab('media')}
+                  className={`flex-1 p-3 text-[10px] tracking-widest uppercase flex items-center justify-center gap-2 border-r border-neutral-800 ${activeTab === 'media' ? 'bg-neutral-900 text-green-500' : 'text-neutral-600'}`}
+                 >
+                   <Database size={12} /> Media
+                 </button>
+                 <button 
+                  onClick={() => setActiveTab('templates')}
+                  className={`flex-1 p-3 text-[10px] tracking-widest uppercase flex items-center justify-center gap-2 ${activeTab === 'templates' ? 'bg-neutral-900 text-green-500' : 'text-neutral-600'}`}
+                 >
+                   <Layout size={12} /> Templates
+                 </button>
               </div>
               
               <div className="p-3 flex flex-col gap-2">
-                {media.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => handleAddMediaToPlaylist(m.id)}
-                    disabled={!selectedPlaylistId}
-                    className="w-full text-left flex items-start flex-col bg-[#0a0a0a] border border-neutral-800 px-3 py-2 hover:border-green-500/50 hover:bg-green-500/5 transition-all disabled:opacity-30 disabled:hover:border-neutral-800 disabled:hover:bg-[#0a0a0a] group relative"
-                  >
-                    <div className="flex items-center w-full justify-between mb-1">
-                      <span className="text-[11px] uppercase text-neutral-400 group-hover:text-green-400 truncate pr-4">
-                        {m.name}
+                {activeTab === 'media' ? (
+                  media.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => handleAddMediaToPlaylist(m.id)}
+                      disabled={!selectedPlaylistId}
+                      className="w-full text-left flex items-start flex-col bg-[#0a0a0a] border border-neutral-800 px-3 py-2 hover:border-green-500/50 hover:bg-green-500/5 transition-all disabled:opacity-30 disabled:hover:border-neutral-800 disabled:hover:bg-[#0a0a0a] group relative"
+                    >
+                      <div className="flex items-center w-full justify-between mb-1">
+                        <span className="text-[11px] uppercase text-neutral-400 group-hover:text-green-400 truncate pr-4">
+                          {m.name}
+                        </span>
+                        <Plus size={14} className="text-green-500 opacity-0 group-hover:opacity-100 absolute right-2 top-2" />
+                      </div>
+                      <span className="text-[9px] text-neutral-600 border border-neutral-800 px-1 uppercase tracking-wider">
+                        {m.type}
                       </span>
-                      <Plus size={14} className="text-green-500 opacity-0 group-hover:opacity-100 absolute right-2 top-2" />
-                    </div>
-                    <span className="text-[9px] text-neutral-600 border border-neutral-800 px-1 uppercase tracking-wider">
-                      {m.type}
-                    </span>
-                  </button>
-                ))}
+                    </button>
+                  ))
+                 ) : (
+                  Array.isArray(templates) && templates.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => handleAddTemplateToPlaylist(t.id)}
+                      disabled={!selectedPlaylistId}
+                      className="w-full text-left flex items-start flex-col bg-[#0a0a0a] border border-neutral-800 px-3 py-2 hover:border-green-500/50 hover:bg-green-500/5 transition-all disabled:opacity-30 disabled:hover:border-neutral-800 disabled:hover:bg-[#0a0a0a] group relative"
+                    >
+                      <div className="flex items-center w-full justify-between mb-1">
+                        <span className="text-[11px] uppercase text-neutral-400 group-hover:text-green-400 truncate pr-4">
+                          {t.name}
+                        </span>
+                        <Plus size={14} className="text-green-500 opacity-0 group-hover:opacity-100 absolute right-2 top-2" />
+                      </div>
+                      <span className="text-[9px] text-neutral-600 border border-neutral-800 px-1 uppercase tracking-wider">
+                        TEMPLATE
+                      </span>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Data Editor Overlay */}
+      {editingItemData && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-[#0a0a0a] border border-neutral-800 w-full max-w-2xl p-6 flex flex-col gap-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-4">
+               <h3 className="text-sm font-bold tracking-widest uppercase">Configure Template Data</h3>
+               <button onClick={() => setEditingItemData(null)}><X size={20} /></button>
+            </div>
+            
+            <p className="text-[10px] text-neutral-500 font-mono">
+              Use JSON format to provide values for placeholders like {"{{mensagem}}"}.
+            </p>
+            
+            <textarea 
+              className="flex-1 min-h-[300px] bg-[#050505] border border-neutral-800 p-4 font-mono text-xs text-green-500 focus:outline-none focus:border-green-500/50"
+              value={editingItemData.data_json || "{}"}
+              onChange={(e) => setEditingItemData({...editingItemData, data_json: e.target.value})}
+            />
+            
+            <div className="flex justify-end gap-3 mt-4">
+                <button 
+                  onClick={() => setEditingItemData(null)}
+                  className="px-4 py-2 text-xs uppercase"
+                >Cancelar</button>
+                <button 
+                  onClick={async () => {
+                    try {
+                      await updatePlaylistItem(selectedPlaylistId, editingItemData.id, {
+                        duration: editingItemData.duration,
+                        data_json: editingItemData.data_json
+                      });
+                      loadPlaylistItems(selectedPlaylistId);
+                      setEditingItemData(null);
+                    } catch(err) { 
+                      console.error(err); 
+                      alert("Erro ao salvar dados do item");
+                    }
+                  }}
+                  className="bg-green-600 text-[#050505] px-6 py-2 text-xs font-bold uppercase hover:bg-green-500"
+                >Salvar Dados</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -19,6 +19,7 @@ export const deletePlaylist = (id) => axios.delete(`${API_URL}/playlists/${id}`)
 export const getPlaylistItems = (id) => axios.get(`${API_URL}/playlists/${id}/items`).then(res => res.data);
 export const addPlaylistItem = (playId, item) => axios.post(`${API_URL}/playlists/${playId}/items`, item).then(res => res.data);
 export const removePlaylistItem = (playId, itemId) => axios.delete(`${API_URL}/playlists/${playId}/items/${itemId}`).then(res => res.data);
+export const updatePlaylistItem = (playId, itemId, data) => axios.put(`${API_URL}/playlists/${playId}/items/${itemId}`, data).then(res => res.data);
 export const reorderPlaylistItems = (playId, itemIds) => axios.put(`${API_URL}/playlists/${playId}/items/reorder`, { items: itemIds }).then(res => res.data);
 
 export const getDevices = () => axios.get(`${API_URL}/devices`).then(res => res.data);
@@ -37,4 +38,9 @@ export const uploadOverlayImage = (file) => {
   formData.append('image', file);
   return axios.post(`${API_URL}/overlays/upload-image`, formData).then(res => res.data);
 };
+
+export const getTemplates = () => axios.get(`${API_URL}/templates`).then(res => res.data);
+export const createTemplate = (data) => axios.post(`${API_URL}/templates`, data).then(res => res.data);
+export const updateTemplate = (id, data) => axios.put(`${API_URL}/templates/${id}`, data).then(res => res.data);
+export const deleteTemplate = (id) => axios.delete(`${API_URL}/templates/${id}`).then(res => res.data);
 
