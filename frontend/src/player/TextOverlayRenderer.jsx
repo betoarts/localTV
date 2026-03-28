@@ -3,6 +3,7 @@ import { API_BASE } from '../api';
 import {
   AlertCircle, CheckCircle, Info, Star, Heart, Flame, Zap, Bell, Shield, ThumbsUp, Type
 } from 'lucide-react';
+import TemplateRenderer from './TemplateRenderer';
 
 const MEDIA_BASE = API_BASE;
 
@@ -96,20 +97,44 @@ const OverlayItem = ({ overlay }) => {
     flexShrink: 0,
   };
 
+  const content = (
+    <>
+      {overlay.template_id ? (
+        <div style={{ width: '100%', height: '100%' }}>
+          <TemplateRenderer 
+            layout={overlay.template_layout} 
+            data={(() => {
+               try {
+                 return typeof overlay.data_json === 'string' ? JSON.parse(overlay.data_json || '{}') : (overlay.data_json || {});
+               } catch (e) {
+                 console.error("Error parsing overlay data_json:", e);
+                 return {};
+               }
+            })()} 
+          />
+        </div>
+      ) : (
+        <>
+          {IconComponent && (
+            <IconComponent size={overlay.icon_size || 40} color={overlay.icon_color || '#FFFFFF'} style={{ flexShrink: 0 }} />
+          )}
+          {hasImage && (
+            <img
+              src={MEDIA_BASE + overlay.image_path}
+              alt=""
+              style={imageStyle}
+            />
+          )}
+          {hasText && <span>{overlay.text}</span>}
+        </>
+      )}
+    </>
+  );
+
   return (
     <div style={wrapperStyle}>
-      <div style={containerStyle}>
-        {IconComponent && (
-          <IconComponent size={overlay.icon_size || 40} color={overlay.icon_color || '#FFFFFF'} style={{ flexShrink: 0 }} />
-        )}
-        {hasImage && (
-          <img
-            src={MEDIA_BASE + overlay.image_path}
-            alt=""
-            style={imageStyle}
-          />
-        )}
-        {hasText && <span>{overlay.text}</span>}
+      <div style={overlay.template_id ? { width: '100%', height: '100%' } : containerStyle}>
+        {content}
       </div>
     </div>
   );

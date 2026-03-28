@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import {
   getOverlays, createOverlay, updateOverlay, deleteOverlay,
-  getDevices, getPlaylists, getPlaylistItems, getMedia, uploadOverlayImage, API_BASE
+  getDevices, getPlaylists, getPlaylistItems, getMedia, uploadOverlayImage, API_BASE, getTemplates
 } from '../api';
 import {
   Type, Plus, Trash2, Edit3, Save, X, Eye, EyeOff,
@@ -74,6 +74,8 @@ const DEFAULT_FORM = {
   is_active: 1,
   image_path: '',
   image_size: 150,
+  template_id: null,
+  data_json: '{}',
 };
 
 const TextOverlays = () => {
@@ -88,6 +90,8 @@ const TextOverlays = () => {
   const [bgOpacity, setBgOpacity] = useState(50);
   const [uploading, setUploading] = useState(false);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const fileInputRef = useRef(null);
 
   // Drag state
@@ -110,6 +114,7 @@ const TextOverlays = () => {
       setAllPlaylistItems(allItems);
     } catch (e) { console.error('Failed to load playlists:', e); }
     try { const m = await getMedia(); setMediaLibrary(m.filter(item => item.type === 'image')); } catch (e) { console.error('Failed to load media:', e); }
+    try { const t = await getTemplates(); setTemplates(t); } catch (e) { console.error('Failed to load templates:', e); }
     try { const o = await getOverlays(); setOverlays(o); } catch (e) { console.error('Failed to load overlays:', e); }
   };
 
@@ -161,7 +166,7 @@ const TextOverlays = () => {
 
   const handleSubmit = async () => {
     if (!form.target_id) return;
-    if (!form.text && !form.image_path && !form.icon_name) return;
+    if (!form.text && !form.image_path && !form.icon_name && !form.template_id) return;
 
     const payload = {
       ...form,
@@ -220,6 +225,8 @@ const TextOverlays = () => {
       is_active: overlay.is_active,
       image_path: overlay.image_path || '',
       image_size: overlay.image_size || 150,
+      template_id: overlay.template_id || null,
+      data_json: overlay.data_json || '{}',
     });
     setBgOpacity(opacity);
     setEditingId(overlay.id);
@@ -247,7 +254,8 @@ const TextOverlays = () => {
     return `Playlist #${overlay.target_id}`;
   };
 
-  const hasContent = form.text || form.image_path || form.icon_name;
+  const targets = form.target_type === 'device' ? devices : playlists;
+  const hasContent = form.text || form.image_path || form.icon_name || form.template_id;
 
   // Drag mapping logic
   const handlePointerDown = (e) => {
@@ -476,6 +484,73 @@ const TextOverlays = () => {
                 />
               </div>
 
+              {/* Template Selection */}
+              <div>
+                <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-2 block">Overlay de Template (Dynamic Layout)</label>
+                {form.template_id ? (
+                  <div className="flex items-center gap-3 bg-neutral-900 border border-green-800 p-3 mb-2">
+                    <div className="h-12 w-12 bg-neutral-800 border border-neutral-600 flex items-center justify-center text-green-500">
+                      <ListVideo size={24} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-mono text-neutral-300 truncate">
+                        {templates.find(t => t.id === form.template_id)?.name || 'Template Selecionado'}
+                      </p>
+                      <p className="text-[10px] font-mono text-green-500 uppercase">✓ Template Ativo</p>
+                    </div>
+                    <button
+                      onClick={() => setForm(prev => ({ ...prev, template_id: null }))}
+                      className="p-1.5 text-neutral-500 hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowTemplatePicker(!showTemplatePicker)}
+                    className={`w-full flex items-center justify-center gap-2 bg-neutral-900 border border-dashed text-neutral-400 hover:border-green-500 hover:text-green-400 py-3 text-xs font-mono transition-all duration-200 mb-2 ${showTemplatePicker ? 'border-green-500 text-green-400' : 'border-neutral-700'}`}
+                  >
+                    <Plus size={14} /> SELECIONAR TEMPLATE
+                  </button>
+                )}
+
+                {showTemplatePicker && !form.template_id && (
+                  <div className="bg-neutral-900 border border-neutral-700 p-3 max-h-48 overflow-y-auto mb-4">
+                    {templates.length === 0 ? (
+                      <p className="text-[10px] font-mono text-neutral-600 text-center py-4 uppercase">Nenhum template encontrado</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {templates.map(t => (
+                          <button
+                            key={t.id}
+                            onClick={() => {
+                              setForm(prev => ({ ...prev, template_id: t.id }));
+                              setShowTemplatePicker(false);
+                            }}
+                            className="w-full text-left bg-neutral-800 border border-neutral-700 hover:border-green-500 p-2 text-xs font-mono transition-colors"
+                          >
+                            <span className="text-neutral-500 mr-2 text-[10px]">ID:{t.id}</span>
+                            {t.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {form.template_id && (
+                  <div>
+                    <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Variáveis do Template (JSON)</label>
+                    <textarea
+                      value={form.data_json}
+                      onChange={e => setForm(prev => ({ ...prev, data_json: e.target.value }))}
+                      placeholder='{"title": "Urgente", "msg": "..."}'
+                      className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-3 py-2 text-[10px] font-mono focus:border-green-500 focus:outline-none resize-none h-20"
+                    />
+                  </div>
+                )}
+              </div>
+
               {/* Font Family & Size */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -505,6 +580,82 @@ const TextOverlays = () => {
                     className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-3 py-2 text-sm font-mono focus:border-green-500 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              {/* Image Upload / Library Picker */}
+              <div>
+                <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-2 block">Logo / Imagem (PNG, SVG)</label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".png,.svg,image/png,image/svg+xml"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+
+                {form.image_path ? (
+                  <div className="flex items-center gap-3 bg-neutral-900 border border-green-800 p-3 mb-2">
+                    <img
+                      src={MEDIA_BASE + form.image_path}
+                      alt="overlay logo"
+                      className="h-12 w-12 object-contain bg-neutral-800 border border-neutral-600 p-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-mono text-neutral-300 truncate">{form.image_path.split('/').pop()}</p>
+                      <p className="text-[10px] font-mono text-green-500">✓ Imagem selecionada</p>
+                    </div>
+                    <button
+                      onClick={handleRemoveImage}
+                      className="p-1.5 text-neutral-500 hover:text-red-400 transition-colors"
+                      title="Remover imagem"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                    <button
+                      onClick={() => setShowMediaPicker(true)}
+                      className="p-1.5 text-neutral-500 hover:text-green-400 transition-colors"
+                      title="Escolher da biblioteca"
+                    >
+                      <FolderOpen size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="flex items-center justify-center gap-2 bg-neutral-900 border border-dashed border-neutral-700 hover:border-green-500 hover:text-green-400 py-3 text-xs font-mono transition-all duration-200"
+                    >
+                      {uploading ? <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"/> : <Upload size={14} />} UPLOAD LOCAL
+                    </button>
+                    <button
+                      onClick={() => setShowMediaPicker(!showMediaPicker)}
+                      className="flex items-center justify-center gap-2 bg-neutral-900 border border-dashed border-neutral-700 hover:border-green-500 hover:text-green-400 py-3 text-xs font-mono transition-all duration-200"
+                    >
+                      <FolderOpen size={14} /> BIBLIOTECA
+                    </button>
+                  </div>
+                )}
+
+                {showMediaPicker && (
+                  <div className="bg-neutral-900 border border-neutral-700 p-3 max-h-48 overflow-y-auto mb-4 mt-2">
+                    {mediaLibrary.length === 0 ? (
+                      <p className="text-[10px] font-mono text-neutral-600 text-center py-4 uppercase">Nenhuma imagem na biblioteca</p>
+                    ) : (
+                      <div className="grid grid-cols-4 gap-2">
+                        {mediaLibrary.map(item => (
+                          <div
+                            key={item.id}
+                            onClick={() => handleSelectFromLibrary(item)}
+                            className="aspect-square bg-neutral-800 border border-neutral-700 hover:border-green-500 cursor-pointer overflow-hidden p-1 group"
+                          >
+                            <img src={MEDIA_BASE + item.path} alt="" className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Icon selection */}
@@ -828,8 +979,13 @@ const TextOverlays = () => {
                   )}
                 </div>
                 <p className="text-xs sm:text-sm font-mono text-neutral-200 truncate uppercase" style={{ fontFamily: overlay.font_family}}>
-                  {overlay.icon_name && <span className="text-yellow-500 mr-2">[{overlay.icon_name}]</span>}
-                  {overlay.text || (overlay.image_path ? '[ IMAGE_DATA_INJECTED ]' : '—')}
+                  {overlay.template_id 
+                    ? `[ TEMPLATE_INJECTED: ${overlay.template_name || '...'} ]` 
+                    : <>
+                        {overlay.icon_name && <span className="text-yellow-500 mr-2">[{overlay.icon_name}]</span>}
+                        {overlay.text || (overlay.image_path ? '[ IMAGE_DATA_INJECTED ]' : '—')}
+                      </>
+                  }
                 </p>
               </div>
             </div>

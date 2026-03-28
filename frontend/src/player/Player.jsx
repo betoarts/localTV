@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { getDevice, getPlaylistItems, getOverlaysByTarget, getPlaylistItemsOverlays, API_BASE } from '../api';
 import TextOverlayRenderer from './TextOverlayRenderer';
+import TemplateRenderer from './TemplateRenderer';
 
 const SOCKET_URL = API_BASE || undefined;
 const MEDIA_BASE = API_BASE;
@@ -146,8 +147,9 @@ const Player = () => {
       socketRef.current.emit('now_playing', { deviceId, media: currentItem });
     }
     
-    if (currentItem.type === 'image') {
+    if (currentItem.type === 'image' || currentItem.type === 'template') {
       const waitTime = (currentItem.duration || currentItem.default_duration || 10) * 1000;
+      console.log(`[PLAYER] Scheduled next item in ${waitTime}ms for type: ${currentItem.type}`);
       
       timeoutRef.current = setTimeout(() => {
         handleNextItem();
@@ -159,28 +161,30 @@ const Player = () => {
     };
   }, [currentIndex, items, playCount, deviceId, device?.is_playing]);
 
+
   const currentItemRef = items[currentIndex];
 
   useEffect(() => {
     if (videoRef.current && currentItemRef?.type === 'video') {
       const isMuted = device?.muted !== 0;
+      console.log(`[PLAYER] Initializing video playback. Path: ${currentItemRef.path}, Muted: ${isMuted}`);
+      
       videoRef.current.muted = isMuted;
       videoRef.current.defaultMuted = isMuted;
       
       const playPromise = videoRef.current.play();
       if (playPromise !== undefined) {
         playPromise.catch(err => {
-          console.warn('Playback blocked:', err);
+          console.warn('[PLAYER] Playback blocked:', err);
+          // If unmuted failed, try muted as fallback
           if (!isMuted) {
-            // Browser blocked audio autoplay, fallback to muted to prevent freezing
+            console.log('[PLAYER] Falling back to muted playback...');
             videoRef.current.muted = true;
             videoRef.current.play().catch(e => {
-              console.error('Playback completely blocked:', e);
-              // Force next slide to prevent playlist from freezing forever
+              console.error('[PLAYER] Playback completely blocked:', e);
               handleNextItem();
             });
           } else {
-             // Blocked even if muted - force next slide
              handleNextItem();
           }
         });
@@ -303,6 +307,13 @@ const Player = () => {
             onError={handleVideoError}
           />
 
+        ) : currentItem.type === 'template' ? (
+          <div key={`template-${currentIndex}-${playCount}`} className={`w-full h-full ${transitionClass}`}>
+             <TemplateRenderer 
+                layout={currentItem.template_layout} 
+                data={currentItem.data_json ? JSON.parse(currentItem.data_json) : {}} 
+             />
+          </div>
         ) : (
           <img 
             key={`media-${currentIndex}-${playCount}`}

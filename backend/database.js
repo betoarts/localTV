@@ -72,11 +72,26 @@ const initDb = () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       playlist_id INTEGER,
       media_id INTEGER,
+      template_id INTEGER,
       item_order INTEGER,
       duration INTEGER,
+      data_json TEXT,
       FOREIGN KEY(playlist_id) REFERENCES playlists(id),
-      FOREIGN KEY(media_id) REFERENCES media(id)
+      FOREIGN KEY(media_id) REFERENCES media(id),
+      FOREIGN KEY(template_id) REFERENCES templates(id)
     )`);
+
+    // Templates table
+    db.run(`CREATE TABLE IF NOT EXISTS templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      json_layout TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    // Gracefully add template_id and data_json columns to playlist_items if they don't exist
+    db.run("ALTER TABLE playlist_items ADD COLUMN template_id INTEGER", (err) => {});
+    db.run("ALTER TABLE playlist_items ADD COLUMN data_json TEXT", (err) => {});
 
     // Text Overlays table
     db.run(`CREATE TABLE IF NOT EXISTS text_overlays (
@@ -101,12 +116,17 @@ const initDb = () => {
       icon_name TEXT DEFAULT NULL,
       icon_size INTEGER DEFAULT 24,
       icon_color TEXT DEFAULT '#FFFFFF',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      template_id INTEGER,
+      data_json TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(template_id) REFERENCES templates(id)
     )`);
 
     // Gracefully add image columns to text_overlays
     db.run("ALTER TABLE text_overlays ADD COLUMN image_path TEXT DEFAULT NULL", (err) => {});
     db.run("ALTER TABLE text_overlays ADD COLUMN image_size INTEGER DEFAULT 100", (err) => {});
+    db.run("ALTER TABLE text_overlays ADD COLUMN template_id INTEGER", (err) => {});
+    db.run("ALTER TABLE text_overlays ADD COLUMN data_json TEXT", (err) => {});
 
     // Gracefully add new feature columns
     db.run("ALTER TABLE text_overlays ADD COLUMN font_family TEXT DEFAULT 'Roboto'", (err) => {});

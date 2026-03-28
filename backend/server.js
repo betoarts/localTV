@@ -142,9 +142,20 @@ app.get('/api/playlists', (req, res) => {
 
 app.get('/api/playlists/:id/items', (req, res) => {
   const query = `
-    SELECT p.id, p.item_order, p.duration, m.filename, m.type, m.path, m.duration as default_duration, m.name
+    SELECT p.id, p.item_order, p.duration, p.data_json,
+           m.filename as media_filename, m.type as media_type, m.path as path, m.name as media_name,
+           t.name as template_name, t.json_layout as template_layout,
+           CASE 
+             WHEN p.template_id IS NOT NULL THEN 'template'
+             ELSE m.type 
+           END as type,
+           CASE
+             WHEN p.template_id IS NOT NULL THEN t.name
+             ELSE m.name
+           END as name
     FROM playlist_items p
-    JOIN media m ON p.media_id = m.id
+    LEFT JOIN media m ON p.media_id = m.id
+    LEFT JOIN templates t ON p.template_id = t.id
     WHERE p.playlist_id = ?
     ORDER BY p.item_order ASC
   `;
@@ -190,9 +201,13 @@ app.delete('/api/playlists/:id', (req, res) => {
 });
 
 app.post('/api/playlists/:id/items', (req, res) => {
-  const { media_id, item_order, duration } = req.body;
-  const query = 'INSERT INTO playlist_items (playlist_id, media_id, item_order, duration) VALUES (?, ?, ?, ?)';
-  db.run(query, [req.params.id, media_id, item_order, duration || null], function (err) {
+  const { media_id, template_id, duration, data_json } = req.body;
+  // Automatically find the next item_order for this specific playlist
+  const query = `
+    INSERT INTO playlist_items (playlist_id, media_id, template_id, duration, data_json, item_order) 
+    VALUES (?, ?, ?, ?, ?, (SELECT IFNULL(MAX(item_order), 0) + 1 FROM playlist_items WHERE playlist_id = ?))
+  `;
+  db.run(query, [req.params.id, media_id || null, template_id || null, duration || null, data_json || null, req.params.id], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     
     // Notify devices that are using this playlist
@@ -210,6 +225,19 @@ app.delete('/api/playlists/:playId/items/:itemId', (req, res) => {
   });
 });
 
+app.put('/api/playlists/:playId/items/:itemId', (req, res) => {
+  const { duration, data_json } = req.body;
+  db.run(
+    'UPDATE playlist_items SET duration = ?, data_json = ? WHERE id = ? AND playlist_id = ?',
+    [duration, data_json, req.params.itemId, req.params.playId],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      io.emit('playlist_updated', req.params.playId);
+      res.json({ success: true });
+    }
+  );
+});
+
 app.put('/api/playlists/:id/items/reorder', (req, res) => {
   const { items } = req.body;
   if (!items || !Array.isArray(items)) return res.status(400).json({ error: 'Invalid items array' });
@@ -217,7 +245,10 @@ app.put('/api/playlists/:id/items/reorder', (req, res) => {
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     items.forEach((itemId, index) => {
-      db.run('UPDATE playlist_items SET item_order = ? WHERE id = ? AND playlist_id = ?', [index + 1, itemId, req.params.id]);
+      // Re-map index (0-based) to order (1-based)
+      db.run('UPDATE playlist_items SET item_order = ? WHERE id = ? AND playlist_id = ?', [index + 1, itemId, req.params.id], (err) => {
+        if (err) console.error(`Failed to update order for item ${itemId}:`, err.message);
+      });
     });
     db.run('COMMIT', (err) => {
       if (err) {
@@ -289,23 +320,62 @@ app.delete('/api/devices/:id', (req, res) => {
   });
 });
 
+// ===== TEMPLATES API =====
+app.get('/api/templates', (req, res) => {
+  db.all('SELECT * FROM templates ORDER BY created_at DESC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.post('/api/templates', (req, res) => {
+  const { name, json_layout } = req.body;
+  db.run('INSERT INTO templates (name, json_layout) VALUES (?, ?)', [name, json_layout], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ id: this.lastID, name, json_layout });
+  });
+});
+
+app.put('/api/templates/:id', (req, res) => {
+  const { name, json_layout } = req.body;
+  db.run('UPDATE templates SET name = ?, json_layout = ? WHERE id = ?', [name, json_layout, req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+app.delete('/api/templates/:id', (req, res) => {
+  db.run('DELETE FROM templates WHERE id = ?', [req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
 // ===== TEXT OVERLAYS API =====
 app.get('/api/overlays', (req, res) => {
-  db.all('SELECT * FROM text_overlays ORDER BY created_at DESC', [], (err, rows) => {
+  const query = `
+    SELECT o.*, t.name as template_name, t.json_layout as template_layout
+    FROM text_overlays o
+    LEFT JOIN templates t ON o.template_id = t.id
+    ORDER BY o.created_at DESC
+  `;
+  db.all(query, [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
 app.get('/api/overlays/target/:type/:id', (req, res) => {
-  db.all(
-    'SELECT * FROM text_overlays WHERE target_type = ? AND target_id = ? AND is_active = 1',
-    [req.params.type, req.params.id],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(rows);
-    }
-  );
+  const query = `
+    SELECT o.*, t.name as template_name, t.json_layout as template_layout
+    FROM text_overlays o
+    LEFT JOIN templates t ON o.template_id = t.id
+    WHERE o.target_type = ? AND o.target_id = ? AND o.is_active = 1
+  `;
+  db.all(query, [req.params.type, req.params.id], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
 });
 
 app.get('/api/overlays/playlist-items/:id', (req, res) => {
@@ -334,18 +404,18 @@ app.post('/api/overlays', (req, res) => {
     text, target_type, target_id, position, animation,
     font_size, font_color, bg_color, bg_blur, font_weight,
     text_shadow, border, duration_seconds, is_active, image_path, image_size,
-    font_family, pos_x, pos_y, icon_name, icon_size, icon_color
+    font_family, pos_x, pos_y, icon_name, icon_size, icon_color, template_id, data_json
   } = req.body;
 
   const query = `INSERT INTO text_overlays 
-    (text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size, font_family, pos_x, pos_y, icon_name, icon_size, icon_color)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    (text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size, font_family, pos_x, pos_y, icon_name, icon_size, icon_color, template_id, data_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
   db.run(query, [
     text || '', target_type || 'device', target_id, position || 'bottom-bar', animation || 'none',
     font_size || 24, font_color || '#FFFFFF', bg_color || '#00000080', bg_blur || 0,
     font_weight || 'normal', text_shadow || 0, border || 0, duration_seconds || 0, is_active !== undefined ? is_active : 1,
-    image_path || null, image_size || 100, font_family || 'Roboto', pos_x !== undefined ? pos_x : 50, pos_y !== undefined ? pos_y : 50, icon_name || null, icon_size || 24, icon_color || '#FFFFFF'
+    image_path || null, image_size || 100, font_family || 'Roboto', pos_x !== undefined ? pos_x : 50, pos_y !== undefined ? pos_y : 50, icon_name || null, icon_size || 24, icon_color || '#FFFFFF', template_id || null, data_json || null
   ], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     io.emit('overlays_updated');
@@ -358,21 +428,21 @@ app.put('/api/overlays/:id', (req, res) => {
     text, target_type, target_id, position, animation,
     font_size, font_color, bg_color, bg_blur, font_weight,
     text_shadow, border, duration_seconds, is_active, image_path, image_size,
-    font_family, pos_x, pos_y, icon_name, icon_size, icon_color
+    font_family, pos_x, pos_y, icon_name, icon_size, icon_color, template_id, data_json
   } = req.body;
 
   const query = `UPDATE text_overlays SET 
     text = ?, target_type = ?, target_id = ?, position = ?, animation = ?,
     font_size = ?, font_color = ?, bg_color = ?, bg_blur = ?, font_weight = ?,
     text_shadow = ?, border = ?, duration_seconds = ?, is_active = ?,
-    image_path = ?, image_size = ?, font_family = ?, pos_x = ?, pos_y = ?, icon_name = ?, icon_size = ?, icon_color = ?
+    image_path = ?, image_size = ?, font_family = ?, pos_x = ?, pos_y = ?, icon_name = ?, icon_size = ?, icon_color = ?, template_id = ?, data_json = ?
     WHERE id = ?`;
 
   db.run(query, [
     text, target_type, target_id, position, animation,
     font_size, font_color, bg_color, bg_blur, font_weight,
     text_shadow, border, duration_seconds, is_active,
-    image_path || null, image_size || 100, font_family || 'Roboto', pos_x, pos_y, icon_name || null, icon_size || 24, icon_color || '#FFFFFF', req.params.id
+    image_path || null, image_size || 100, font_family || 'Roboto', pos_x, pos_y, icon_name || null, icon_size || 24, icon_color || '#FFFFFF', template_id || null, data_json || null, req.params.id
   ], (err) => {
     if (err) return res.status(500).json({ error: err.message });
     io.emit('overlays_updated');
@@ -393,7 +463,7 @@ app.delete('/api/overlays/:id', (req, res) => {
 app.get('/api/config/export', (req, res) => {
   db.serialize(() => {
     const result = {};
-    const tables = ['devices', 'playlists', 'playlist_items', 'media', 'text_overlays'];
+    const tables = ['devices', 'playlists', 'playlist_items', 'media', 'templates', 'text_overlays'];
     let done = 0;
 
     tables.forEach(table => {
@@ -443,17 +513,25 @@ app.post('/api/config/import', (req, res) => {
     // Re-insert playlist items
     (playlist_items || []).forEach(i => {
       db.run(
-        'INSERT INTO playlist_items (id, playlist_id, media_id, item_order, duration) VALUES (?, ?, ?, ?, ?)',
-        [i.id, i.playlist_id, i.media_id, i.item_order, i.duration]
+        'INSERT INTO playlist_items (id, playlist_id, media_id, template_id, item_order, duration, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [i.id, i.playlist_id, i.media_id, i.template_id, i.item_order, i.duration, i.data_json]
+      );
+    });
+
+    // Re-insert templates
+    (req.body.templates || []).forEach(t => {
+      db.run(
+        'INSERT INTO templates (id, name, json_layout) VALUES (?, ?, ?)',
+        [t.id, t.name, t.json_layout]
       );
     });
 
     // Re-insert overlays
     (text_overlays || []).forEach(o => {
       db.run(
-        `INSERT INTO text_overlays (id, text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size, font_family, pos_x, pos_y, icon_name, icon_size, icon_color)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [o.id, o.text, o.target_type, o.target_id, o.position, o.animation, o.font_size, o.font_color, o.bg_color, o.bg_blur, o.font_weight, o.text_shadow, o.border, o.duration_seconds, o.is_active, o.image_path, o.image_size, o.font_family, o.pos_x, o.pos_y, o.icon_name, o.icon_size, o.icon_color]
+        `INSERT INTO text_overlays (id, text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size, font_family, pos_x, pos_y, icon_name, icon_size, icon_color, template_id, data_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [o.id, o.text, o.target_type, o.target_id, o.position, o.animation, o.font_size, o.font_color, o.bg_color, o.bg_blur, o.font_weight, o.text_shadow, o.border, o.duration_seconds, o.is_active, o.image_path, o.image_size, o.font_family, o.pos_x, o.pos_y, o.icon_name, o.icon_size, o.icon_color, o.template_id, o.data_json]
       );
     });
 
