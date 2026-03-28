@@ -48,7 +48,7 @@ const Login = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-neutral-200 tracking-tight">Portier Admin</h1>
+          <h1 className="text-2xl font-bold text-neutral-200 tracking-tight">PORTAL LOCALTV</h1>
           <p className="text-neutral-500 mt-2">Insira sua senha para acessar o painel</p>
         </div>
 
@@ -96,7 +96,7 @@ const Login = () => {
         </form>
 
         <div className="mt-8 pt-6 border-t border-neutral-800/50 text-center">
-          <p className="text-xs text-neutral-600 uppercase tracking-widest font-medium">BetoArts LocalTV System</p>
+          <p className="text-xs text-neutral-600 uppercase tracking-widest font-medium">HMOURA LocalTV System</p>
         </div>
       </div>
     </div>

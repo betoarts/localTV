@@ -308,6 +308,21 @@ app.get('/api/overlays/target/:type/:id', (req, res) => {
   );
 });
 
+app.get('/api/overlays/playlist-items/:id', (req, res) => {
+  const query = `
+    SELECT t.* 
+    FROM text_overlays t
+    JOIN playlist_items p ON t.target_id = p.id
+    WHERE t.target_type = 'playlist_item' 
+    AND p.playlist_id = ? 
+    AND t.is_active = 1
+  `;
+  db.all(query, [req.params.id], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
 app.post('/api/overlays/upload-image', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const imagePath = `/media/${req.file.filename}`;
@@ -318,18 +333,19 @@ app.post('/api/overlays', (req, res) => {
   const {
     text, target_type, target_id, position, animation,
     font_size, font_color, bg_color, bg_blur, font_weight,
-    text_shadow, border, duration_seconds, is_active, image_path, image_size
+    text_shadow, border, duration_seconds, is_active, image_path, image_size,
+    font_family, pos_x, pos_y, icon_name, icon_size, icon_color
   } = req.body;
 
   const query = `INSERT INTO text_overlays 
-    (text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    (text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size, font_family, pos_x, pos_y, icon_name, icon_size, icon_color)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
   db.run(query, [
     text || '', target_type || 'device', target_id, position || 'bottom-bar', animation || 'none',
     font_size || 24, font_color || '#FFFFFF', bg_color || '#00000080', bg_blur || 0,
     font_weight || 'normal', text_shadow || 0, border || 0, duration_seconds || 0, is_active !== undefined ? is_active : 1,
-    image_path || null, image_size || 100
+    image_path || null, image_size || 100, font_family || 'Roboto', pos_x !== undefined ? pos_x : 50, pos_y !== undefined ? pos_y : 50, icon_name || null, icon_size || 24, icon_color || '#FFFFFF'
   ], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     io.emit('overlays_updated');
@@ -341,21 +357,22 @@ app.put('/api/overlays/:id', (req, res) => {
   const {
     text, target_type, target_id, position, animation,
     font_size, font_color, bg_color, bg_blur, font_weight,
-    text_shadow, border, duration_seconds, is_active, image_path, image_size
+    text_shadow, border, duration_seconds, is_active, image_path, image_size,
+    font_family, pos_x, pos_y, icon_name, icon_size, icon_color
   } = req.body;
 
   const query = `UPDATE text_overlays SET 
     text = ?, target_type = ?, target_id = ?, position = ?, animation = ?,
     font_size = ?, font_color = ?, bg_color = ?, bg_blur = ?, font_weight = ?,
     text_shadow = ?, border = ?, duration_seconds = ?, is_active = ?,
-    image_path = ?, image_size = ?
+    image_path = ?, image_size = ?, font_family = ?, pos_x = ?, pos_y = ?, icon_name = ?, icon_size = ?, icon_color = ?
     WHERE id = ?`;
 
   db.run(query, [
     text, target_type, target_id, position, animation,
     font_size, font_color, bg_color, bg_blur, font_weight,
     text_shadow, border, duration_seconds, is_active,
-    image_path || null, image_size || 100, req.params.id
+    image_path || null, image_size || 100, font_family || 'Roboto', pos_x, pos_y, icon_name || null, icon_size || 24, icon_color || '#FFFFFF', req.params.id
   ], (err) => {
     if (err) return res.status(500).json({ error: err.message });
     io.emit('overlays_updated');
@@ -434,9 +451,9 @@ app.post('/api/config/import', (req, res) => {
     // Re-insert overlays
     (text_overlays || []).forEach(o => {
       db.run(
-        `INSERT INTO text_overlays (id, text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [o.id, o.text, o.target_type, o.target_id, o.position, o.animation, o.font_size, o.font_color, o.bg_color, o.bg_blur, o.font_weight, o.text_shadow, o.border, o.duration_seconds, o.is_active, o.image_path, o.image_size]
+        `INSERT INTO text_overlays (id, text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size, font_family, pos_x, pos_y, icon_name, icon_size, icon_color)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [o.id, o.text, o.target_type, o.target_id, o.position, o.animation, o.font_size, o.font_color, o.bg_color, o.bg_blur, o.font_weight, o.text_shadow, o.border, o.duration_seconds, o.is_active, o.image_path, o.image_size, o.font_family, o.pos_x, o.pos_y, o.icon_name, o.icon_size, o.icon_color]
       );
     });
 

@@ -95,12 +95,26 @@ const initDb = () => {
       border INTEGER DEFAULT 0,
       duration_seconds INTEGER DEFAULT 0,
       is_active INTEGER DEFAULT 1,
+      font_family TEXT DEFAULT 'Roboto',
+      pos_x INTEGER DEFAULT 50,
+      pos_y INTEGER DEFAULT 50,
+      icon_name TEXT DEFAULT NULL,
+      icon_size INTEGER DEFAULT 24,
+      icon_color TEXT DEFAULT '#FFFFFF',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
     // Gracefully add image columns to text_overlays
     db.run("ALTER TABLE text_overlays ADD COLUMN image_path TEXT DEFAULT NULL", (err) => {});
     db.run("ALTER TABLE text_overlays ADD COLUMN image_size INTEGER DEFAULT 100", (err) => {});
+
+    // Gracefully add new feature columns
+    db.run("ALTER TABLE text_overlays ADD COLUMN font_family TEXT DEFAULT 'Roboto'", (err) => {});
+    db.run("ALTER TABLE text_overlays ADD COLUMN pos_x INTEGER DEFAULT 50", (err) => {});
+    db.run("ALTER TABLE text_overlays ADD COLUMN pos_y INTEGER DEFAULT 50", (err) => {});
+    db.run("ALTER TABLE text_overlays ADD COLUMN icon_name TEXT DEFAULT NULL", (err) => {});
+    db.run("ALTER TABLE text_overlays ADD COLUMN icon_size INTEGER DEFAULT 24", (err) => {});
+    db.run("ALTER TABLE text_overlays ADD COLUMN icon_color TEXT DEFAULT '#FFFFFF'", (err) => {});
 
     // --- Performance Optimization Indexes ---
     db.run("CREATE INDEX IF NOT EXISTS idx_devices_playlist ON devices(playlist_id)");

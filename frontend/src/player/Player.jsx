@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { getDevice, getPlaylistItems, getOverlaysByTarget, API_BASE } from '../api';
+import { getDevice, getPlaylistItems, getOverlaysByTarget, getPlaylistItemsOverlays, API_BASE } from '../api';
 import TextOverlayRenderer from './TextOverlayRenderer';
 
 const SOCKET_URL = API_BASE || undefined;
@@ -52,7 +52,7 @@ const Player = () => {
       const deviceOverlays = await getOverlaysByTarget('device', deviceId);
       let playlistOverlays = [];
       if (d?.playlist_id) {
-        playlistOverlays = await getOverlaysByTarget('playlist', d.playlist_id);
+        playlistOverlays = await getPlaylistItemsOverlays(d.playlist_id);
       }
       setOverlays([...deviceOverlays, ...playlistOverlays]);
     } catch (err) {
@@ -122,6 +122,15 @@ const Player = () => {
     };
   }, [deviceId]);
 
+  const handleNextItem = () => {
+    setPlayCount(c => c + 1);
+    setCurrentIndex(prev => {
+      const len = itemsRef.current.length;
+      if (len === 0) return 0;
+      return (prev + 1) % len;
+    });
+  };
+
   useEffect(() => {
     if (items.length === 0 || device?.is_playing === 0) {
       if (socketRef.current) {
@@ -149,15 +158,6 @@ const Player = () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [currentIndex, items, playCount, deviceId, device?.is_playing]);
-
-  const handleNextItem = () => {
-    setPlayCount(c => c + 1);
-    setCurrentIndex(prev => {
-      const len = itemsRef.current.length;
-      if (len === 0) return 0;
-      return (prev + 1) % len;
-    });
-  };
 
   const currentItemRef = items[currentIndex];
 
@@ -234,6 +234,14 @@ const Player = () => {
     getAnimationClass(device?.transition), 
   [device?.transition]);
 
+  const activeOverlays = useMemo(() => {
+    if (!currentItem) return overlays.filter(o => o.target_type === 'device');
+    return overlays.filter(o => 
+      o.target_type === 'device' || 
+      (o.target_type === 'playlist_item' && o.target_id === currentItem.id)
+    );
+  }, [overlays, currentItem]);
+
   if (loading) {
     return <div className="fixed inset-0 bg-black flex items-center justify-center text-cyan-500 font-mono animate-pulse overflow-hidden">
       <style>{`html, body { overflow: hidden !important; background-color: black !important; margin: 0; padding: 0; }`}</style>
@@ -306,7 +314,7 @@ const Player = () => {
         )}
 
         {/* Text Overlays */}
-        <TextOverlayRenderer overlays={overlays} />
+        <TextOverlayRenderer overlays={activeOverlays} />
 
         {/* Predictive Preloading - Hidden from view, but warms up browser cache */}
         {nextItem && nextItem.id !== currentItem.id && (

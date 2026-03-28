@@ -1,49 +1,35 @@
 import { useEffect, useState, useRef } from 'react';
 import { API_BASE } from '../api';
+import {
+  AlertCircle, CheckCircle, Info, Star, Heart, Flame, Zap, Bell, Shield, ThumbsUp, Type
+} from 'lucide-react';
 
 const MEDIA_BASE = API_BASE;
 
-const getPositionClasses = (position) => {
-  switch (position) {
-    case 'top-bar':
-      return 'top-0 left-0 right-0';
-    case 'top-left':
-      return 'top-4 left-4';
-    case 'top-right':
-      return 'top-4 right-4';
-    case 'center':
-      return 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2';
-    case 'bottom-left':
-      return 'bottom-4 left-4';
-    case 'bottom-right':
-      return 'bottom-4 right-4';
-    case 'bottom-bar':
-      return 'bottom-0 left-0 right-0';
-    default:
-      return 'bottom-0 left-0 right-0';
-  }
+const LUCIDE_ICONS_MAP = {
+  AlertCircle, CheckCircle, Info, Star, Heart, Flame, Zap, Bell, Shield, ThumbsUp
 };
+
+const TV_WIDTH = 1920;
+const TV_HEIGHT = 1080;
 
 const getAnimationStyle = (animation) => {
   switch (animation) {
-    case 'marquee':
-      return { animation: 'overlay-marquee 12s linear infinite' };
-    case 'fade-in':
-      return { animation: 'overlay-fade-in 2s ease forwards' };
-    case 'typewriter':
-      return { animation: 'overlay-typewriter 3s steps(40) forwards', overflow: 'hidden', whiteSpace: 'nowrap', borderRight: '2px solid rgba(255,255,255,0.7)' };
-    case 'bounce':
-      return { animation: 'overlay-bounce 1s ease' };
-    case 'slide-up':
-      return { animation: 'overlay-slide-up 0.8s ease-out forwards' };
-    case 'slide-down':
-      return { animation: 'overlay-slide-down 0.8s ease-out forwards' };
-    case 'pulse':
-      return { animation: 'overlay-pulse 2s ease-in-out infinite' };
-    case 'glow':
-      return { animation: 'overlay-glow 2s ease-in-out infinite' };
-    default:
-      return {};
+    case 'marquee': return { animation: 'overlay-marquee 8s linear infinite' };
+    case 'fade-in': return { animation: 'overlay-fade-in 2s ease forwards' };
+    case 'typewriter': return { animation: 'overlay-typewriter 3s steps(40) forwards', overflow: 'hidden', whiteSpace: 'nowrap' };
+    case 'bounce': return { animation: 'overlay-bounce 1s ease' };
+    case 'slide-up': return { animation: 'overlay-slide-up 0.8s ease-out forwards' };
+    case 'slide-down': return { animation: 'overlay-slide-down 0.8s ease-out forwards' };
+    case 'slide-left': return { animation: 'overlay-slide-left 0.8s ease-out forwards' };
+    case 'slide-right': return { animation: 'overlay-slide-right 0.8s ease-out forwards' };
+    case 'zoom-in': return { animation: 'overlay-zoom-in 0.8s ease-out forwards' };
+    case 'zoom-out': return { animation: 'overlay-zoom-out 0.8s ease-out forwards' };
+    case 'flip': return { animation: 'overlay-flip 1s ease-out forwards' };
+    case 'wobble': return { animation: 'overlay-wobble 1s ease-in-out infinite' };
+    case 'pulse': return { animation: 'overlay-pulse 2s ease-in-out infinite' };
+    case 'glow': return { animation: 'overlay-glow 2s ease-in-out infinite' };
+    default: return {};
   }
 };
 
@@ -53,78 +39,77 @@ const OverlayItem = ({ overlay }) => {
 
   useEffect(() => {
     if (overlay.duration_seconds > 0) {
-      const cycle = () => {
-        setVisible(true);
-        timerRef.current = setTimeout(() => {
-          setVisible(false);
-          timerRef.current = setTimeout(() => {
-            cycle();
-          }, 2000);
-        }, overlay.duration_seconds * 1000);
-      };
-      cycle();
+      timerRef.current = setTimeout(() => {
+        setVisible(false);
+      }, overlay.duration_seconds * 1000);
+      
       return () => { if (timerRef.current) clearTimeout(timerRef.current); };
     }
-  }, [overlay.duration_seconds]);
+  }, [overlay.duration_seconds, overlay.id]);
 
   if (!visible) return null;
 
   const hasText = overlay.text && overlay.text.trim();
-  const hasImage = overlay.image_path;
-  const isBar = overlay.position === 'top-bar' || overlay.position === 'bottom-bar';
+  const hasImage = !!overlay.image_path;
+  const hasIcon = !!overlay.icon_name;
+  
+  const IconComponent = overlay.icon_name ? LUCIDE_ICONS_MAP[overlay.icon_name] : null;
+
+  const pctX = ((overlay.pos_x ?? 960) / TV_WIDTH) * 100;
+  const pctY = ((overlay.pos_y ?? 540) / TV_HEIGHT) * 100;
+
+  // Root position style - places center of overlay based on relative percentage mapping
+  const wrapperStyle = {
+    position: 'absolute',
+    left: `${pctX}%`,
+    top: `${pctY}%`,
+    transform: `translate(-${pctX}%, -${pctY}%)`,
+    zIndex: 50,
+    pointerEvents: 'none',
+    width: 'max-content'
+  };
 
   const containerStyle = {
-    display: 'flex',
+    display: 'inline-flex',
     alignItems: 'center',
-    gap: '10px',
+    justifyContent: 'center',
+    gap: '12px',
     fontSize: `${overlay.font_size}px`,
+    fontFamily: overlay.font_family || 'Roboto',
     color: overlay.font_color || '#FFFFFF',
-    backgroundColor: hasText ? (overlay.bg_color || 'rgba(0,0,0,0.5)') : 'transparent',
+    backgroundColor: (hasText || hasIcon) ? (overlay.bg_color || 'transparent') : 'transparent',
     fontWeight: overlay.font_weight || 'normal',
-    textShadow: overlay.text_shadow ? '0 0 12px rgba(0,0,0,0.9), 0 2px 6px rgba(0,0,0,0.6)' : 'none',
-    border: overlay.border ? '1px solid rgba(255,255,255,0.15)' : 'none',
-    backdropFilter: overlay.bg_blur ? 'blur(12px)' : 'none',
-    WebkitBackdropFilter: overlay.bg_blur ? 'blur(12px)' : 'none',
-    padding: hasText ? (isBar ? '8px 16px' : '6px 14px') : '4px',
-    fontFamily: 'system-ui, -apple-system, sans-serif',
-    lineHeight: 1.3,
+    textShadow: overlay.text_shadow ? '0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.5)' : 'none',
+    border: overlay.border ? '1px solid rgba(255,255,255,0.2)' : 'none',
+    backdropFilter: overlay.bg_blur ? 'blur(8px)' : 'none',
+    WebkitBackdropFilter: overlay.bg_blur ? 'blur(8px)' : 'none',
+    padding: (hasText || hasIcon) ? '16px 32px' : '4px', // Bigger padding suitable for 1080p
+    lineHeight: 1.2,
+    whiteSpace: 'pre-wrap',
     ...getAnimationStyle(overlay.animation),
   };
 
   const imageStyle = {
-    height: `${overlay.image_size || 100}px`,
+    height: `${overlay.image_size || 150}px`,
     width: 'auto',
     objectFit: 'contain',
     flexShrink: 0,
   };
 
-  const content = (
-    <>
-      {hasImage && (
-        <img
-          src={MEDIA_BASE + overlay.image_path}
-          alt=""
-          style={imageStyle}
-        />
-      )}
-      {hasText && overlay.text}
-    </>
-  );
-
-  if (isBar && overlay.animation === 'marquee') {
-    return (
-      <div className={`absolute ${getPositionClasses(overlay.position)} overflow-hidden z-50`}>
-        <div style={{ ...containerStyle, display: 'inline-flex', whiteSpace: 'nowrap', paddingLeft: '100%' }}>
-          {content}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={`absolute ${getPositionClasses(overlay.position)} z-50`}>
+    <div style={wrapperStyle}>
       <div style={containerStyle}>
-        {content}
+        {IconComponent && (
+          <IconComponent size={overlay.icon_size || 40} color={overlay.icon_color || '#FFFFFF'} style={{ flexShrink: 0 }} />
+        )}
+        {hasImage && (
+          <img
+            src={MEDIA_BASE + overlay.image_path}
+            alt=""
+            style={imageStyle}
+          />
+        )}
+        {hasText && <span>{overlay.text}</span>}
       </div>
     </div>
   );

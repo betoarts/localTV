@@ -29,6 +29,7 @@ export const deleteDevice = (id) => axios.delete(`${API_URL}/devices/${id}`).the
 
 export const getOverlays = () => axios.get(`${API_URL}/overlays`).then(res => res.data);
 export const getOverlaysByTarget = (type, id) => axios.get(`${API_URL}/overlays/target/${type}/${id}`).then(res => res.data);
+export const getPlaylistItemsOverlays = (playlistId) => axios.get(`${API_URL}/overlays/playlist-items/${playlistId}`).then(res => res.data);
 export const createOverlay = (data) => axios.post(`${API_URL}/overlays`, data).then(res => res.data);
 export const updateOverlay = (id, data) => axios.put(`${API_URL}/overlays/${id}`, data).then(res => res.data);
 export const deleteOverlay = (id) => axios.delete(`${API_URL}/overlays/${id}`).then(res => res.data);
