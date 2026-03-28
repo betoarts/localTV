@@ -100,7 +100,7 @@ const OverlayItem = ({ overlay }) => {
     position: 'absolute',
     left: `${pctX}%`,
     top: `${pctY}%`,
-    transform: `translate(-${pctX}%, -${pctY}%)`,
+    transform: 'translate(-50%, -50%)',
     zIndex: 50,
     pointerEvents: 'none',
     width: 'max-content'

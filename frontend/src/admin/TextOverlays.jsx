@@ -310,9 +310,8 @@ const TextOverlays = () => {
       position: 'absolute',
       left: `${pctX}%`,
       top: `${pctY}%`,
-      transform: `translate(-${pctX}%, -${pctY}%)`, // align center based on relative coordinate
-      // We scale the contents so they visually look proportional to TV size
-      // We'll apply scale via CSS transformation on the actual content wrapper
+      // Always center the element on the exact point — avoids edge deformation
+      transform: 'translate(-50%, -50%)',
       width: 'max-content',
       cursor: isDragging ? 'grabbing' : 'grab',
       userSelect: 'none',
@@ -700,31 +699,44 @@ const TextOverlays = () => {
                 </div>
               </div>
 
-              {/* Coordinates Presets (pixels) */}
-              <div className="pt-2">
-                <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-2 block">Posições Rápidas (Presets em PX)</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {PRESET_POSITIONS.map(p => (
-                    <button
-                      key={p.label}
-                      onClick={() => setForm(prev => ({ ...prev, pos_x: p.x, pos_y: p.y }))}
-                      className="bg-neutral-900 border border-neutral-700 text-neutral-400 hover:border-green-500 hover:text-green-400 py-1.5 text-[10px] font-mono transition-all duration-200"
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <div>
-                    <span className="text-[10px] font-mono text-neutral-500 mb-1 inline-block">Position X (px)</span>
-                    <input type="number" value={form.pos_x} onChange={e => setForm(f => ({...f, pos_x: parseInt(e.target.value)||0}))} className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-2 py-1 text-xs focus:border-green-500 focus:outline-none"/>
+              {/* Coordinates Presets — hidden for templates since they always fill the screen */}
+              {!form.template_id && (
+                <div className="pt-2">
+                  <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-2 block">Posições Rápidas (Presets em PX)</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {PRESET_POSITIONS.map(p => (
+                      <button
+                        key={p.label}
+                        onClick={() => setForm(prev => ({ ...prev, pos_x: p.x, pos_y: p.y }))}
+                        className={`border py-1.5 text-[10px] font-mono transition-all duration-200 ${
+                          form.pos_x === p.x && form.pos_y === p.y
+                            ? 'bg-green-600/20 border-green-500 text-green-400'
+                            : 'bg-neutral-900 border-neutral-700 text-neutral-400 hover:border-green-500 hover:text-green-400'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
                   </div>
-                  <div>
-                    <span className="text-[10px] font-mono text-neutral-500 mb-1 inline-block">Position Y (px)</span>
-                    <input type="number" value={form.pos_y} onChange={e => setForm(f => ({...f, pos_y: parseInt(e.target.value)||0}))} className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-2 py-1 text-xs focus:border-green-500 focus:outline-none"/>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <span className="text-[10px] font-mono text-neutral-500 mb-1 inline-block">Position X (px)</span>
+                      <input type="number" value={form.pos_x} onChange={e => setForm(f => ({...f, pos_x: parseInt(e.target.value)||0}))} className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-2 py-1 text-xs focus:border-green-500 focus:outline-none"/>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono text-neutral-500 mb-1 inline-block">Position Y (px)</span>
+                      <input type="number" value={form.pos_y} onChange={e => setForm(f => ({...f, pos_y: parseInt(e.target.value)||0}))} className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-2 py-1 text-xs focus:border-green-500 focus:outline-none"/>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
+
+              {/* Template position note */}
+              {form.template_id && (
+                <div className="pt-2 px-3 py-2 bg-neutral-900/50 border border-neutral-800 text-[10px] font-mono text-neutral-500">
+                  ℹ Templates ocupam a tela inteira — posição definida pelo layout JSON do template.
+                </div>
+              )}
 
               {/* Style Colors */}
               {hasContent && (
