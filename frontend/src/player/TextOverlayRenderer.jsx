@@ -50,6 +50,43 @@ const OverlayItem = ({ overlay }) => {
 
   if (!visible) return null;
 
+  // ── TEMPLATE OVERLAY: fills the full player area ──────────────────────────
+  // TemplateRenderer uses pixel-based positions (1920×1080 space), so it needs
+  // a container that covers 100% of the player. We bypass the point-position
+  // system and overlay the entire area.
+  if (overlay.template_id) {
+    const data = (() => {
+      try {
+        return typeof overlay.data_json === 'string'
+          ? JSON.parse(overlay.data_json || '{}')
+          : (overlay.data_json || {});
+      } catch {
+        return {};
+      }
+    })();
+
+    const animation = overlay.animation && overlay.animation !== 'none'
+      ? getAnimationStyle(overlay.animation)
+      : {};
+
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: 50,
+          pointerEvents: 'none',
+          ...animation,
+        }}
+      >
+        <TemplateRenderer layout={overlay.template_layout} data={data} />
+      </div>
+    );
+  }
+
+  // ── LEGACY OVERLAY: text / icon / image positioned at a point ─────────────
   const hasText = overlay.text && overlay.text.trim();
   const hasImage = !!overlay.image_path;
   const hasIcon = !!overlay.icon_name;
@@ -59,7 +96,6 @@ const OverlayItem = ({ overlay }) => {
   const pctX = ((overlay.pos_x ?? 960) / TV_WIDTH) * 100;
   const pctY = ((overlay.pos_y ?? 540) / TV_HEIGHT) * 100;
 
-  // Root position style - places center of overlay based on relative percentage mapping
   const wrapperStyle = {
     position: 'absolute',
     left: `${pctX}%`,
@@ -84,7 +120,7 @@ const OverlayItem = ({ overlay }) => {
     border: overlay.border ? '1px solid rgba(255,255,255,0.2)' : 'none',
     backdropFilter: overlay.bg_blur ? 'blur(8px)' : 'none',
     WebkitBackdropFilter: overlay.bg_blur ? 'blur(8px)' : 'none',
-    padding: (hasText || hasIcon) ? '16px 32px' : '4px', // Bigger padding suitable for 1080p
+    padding: (hasText || hasIcon) ? '16px 32px' : '4px',
     lineHeight: 1.2,
     whiteSpace: 'pre-wrap',
     ...getAnimationStyle(overlay.animation),
@@ -97,44 +133,20 @@ const OverlayItem = ({ overlay }) => {
     flexShrink: 0,
   };
 
-  const content = (
-    <>
-      {overlay.template_id ? (
-        <div style={{ width: '100%', height: '100%' }}>
-          <TemplateRenderer 
-            layout={overlay.template_layout} 
-            data={(() => {
-               try {
-                 return typeof overlay.data_json === 'string' ? JSON.parse(overlay.data_json || '{}') : (overlay.data_json || {});
-               } catch (e) {
-                 console.error("Error parsing overlay data_json:", e);
-                 return {};
-               }
-            })()} 
-          />
-        </div>
-      ) : (
-        <>
-          {IconComponent && (
-            <IconComponent size={overlay.icon_size || 40} color={overlay.icon_color || '#FFFFFF'} style={{ flexShrink: 0 }} />
-          )}
-          {hasImage && (
-            <img
-              src={MEDIA_BASE + overlay.image_path}
-              alt=""
-              style={imageStyle}
-            />
-          )}
-          {hasText && <span>{overlay.text}</span>}
-        </>
-      )}
-    </>
-  );
-
   return (
     <div style={wrapperStyle}>
-      <div style={overlay.template_id ? { width: '100%', height: '100%' } : containerStyle}>
-        {content}
+      <div style={containerStyle}>
+        {IconComponent && (
+          <IconComponent size={overlay.icon_size || 40} color={overlay.icon_color || '#FFFFFF'} style={{ flexShrink: 0 }} />
+        )}
+        {hasImage && (
+          <img
+            src={MEDIA_BASE + overlay.image_path}
+            alt=""
+            style={imageStyle}
+          />
+        )}
+        {hasText && <span>{overlay.text}</span>}
       </div>
     </div>
   );
