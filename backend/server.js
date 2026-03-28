@@ -380,12 +380,13 @@ app.get('/api/overlays/target/:type/:id', (req, res) => {
 
 app.get('/api/overlays/playlist-items/:id', (req, res) => {
   const query = `
-    SELECT t.* 
-    FROM text_overlays t
-    JOIN playlist_items p ON t.target_id = p.id
-    WHERE t.target_type = 'playlist_item' 
+    SELECT o.*, tmpl.name as template_name, tmpl.json_layout as template_layout
+    FROM text_overlays o
+    JOIN playlist_items p ON o.target_id = p.id
+    LEFT JOIN templates tmpl ON o.template_id = tmpl.id
+    WHERE o.target_type = 'playlist_item' 
     AND p.playlist_id = ? 
-    AND t.is_active = 1
+    AND o.is_active = 1
   `;
   db.all(query, [req.params.id], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });

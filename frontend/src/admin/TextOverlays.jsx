@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import TemplateRenderer from '../player/TemplateRenderer';
 import {
   getOverlays, createOverlay, updateOverlay, deleteOverlay,
   getDevices, getPlaylists, getPlaylistItems, getMedia, uploadOverlayImage, API_BASE, getTemplates
@@ -109,7 +110,7 @@ const TextOverlays = () => {
         try {
           const items = await getPlaylistItems(pl.id);
           allItems = [...allItems, ...items.map(i => ({...i, playlist_name: pl.name, playlist_id: pl.id}))];
-        } catch (e) { console.error('Failed to load items for playlist', pl.id); }
+        } catch { console.error('Failed to load items for playlist', pl.id); }
       }
       setAllPlaylistItems(allItems);
     } catch (e) { console.error('Failed to load playlists:', e); }
@@ -254,7 +255,6 @@ const TextOverlays = () => {
     return `Playlist #${overlay.target_id}`;
   };
 
-  const targets = form.target_type === 'device' ? devices : playlists;
   const hasContent = form.text || form.image_path || form.icon_name || form.template_id;
 
   // Drag mapping logic
@@ -832,8 +832,21 @@ const TextOverlays = () => {
                   <Monitor size={64} className="text-neutral-900 opacity-30" />
                 </div>
 
-                {/* The Overlay */}
-                {hasContent && (
+                {/* The Overlay - Template Mode fills the full preview area */}
+                {form.template_id ? (
+                  <div className="absolute inset-0 pointer-events-none">
+                    <TemplateRenderer
+                      layout={(() => {
+                        const tpl = templates.find(t => t.id === form.template_id);
+                        return tpl?.json_layout || null;
+                      })()}
+                      data={(() => {
+                        try { return typeof form.data_json === 'string' ? JSON.parse(form.data_json || '{}') : (form.data_json || {}); }
+                        catch { return {}; }
+                      })()}
+                    />
+                  </div>
+                ) : hasContent && (
                   <div 
                     style={getPreviewPositionStyle()}
                     onPointerDown={handlePointerDown}
@@ -847,8 +860,8 @@ const TextOverlays = () => {
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '8px',
-                        transform: `scale(${scaleFactor})`, // Scale down to match container
-                        transformOrigin: 'center center', // Scale from anchor point
+                        transform: `scale(${scaleFactor})`,
+                        transformOrigin: 'center center',
                         fontSize: `${form.font_size}px`,
                         fontFamily: form.font_family,
                         color: form.font_color,
@@ -857,7 +870,7 @@ const TextOverlays = () => {
                         textShadow: form.text_shadow ? '0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.5)' : 'none',
                         border: form.border ? '1px solid rgba(255,255,255,0.2)' : 'none',
                         backdropFilter: form.bg_blur ? 'blur(8px)' : 'none',
-                        padding: (form.text || form.icon_name) ? '12px 24px' : '4px', // Standard HD padding based on pixel size
+                        padding: (form.text || form.icon_name) ? '12px 24px' : '4px',
                         animation: getPreviewAnimation(form.animation),
                         whiteSpace: 'pre-wrap',
                       }}

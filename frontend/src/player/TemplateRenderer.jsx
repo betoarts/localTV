@@ -41,6 +41,10 @@ const TemplateRenderer = ({ layout, data = {} }) => {
     };
 
     switch (el.type) {
+      case 'rect':
+        return (
+          <div key={index} style={style} />
+        );
       case 'text':
         return (
           <div key={index} style={style}>
