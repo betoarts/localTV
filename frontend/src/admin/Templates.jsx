@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getTemplates, createTemplate, updateTemplate, deleteTemplate } from '../api';
-import { Plus, Trash2, Save, X, Layout, Code, Eye, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Save, X, Layout, Code, Eye, RefreshCw, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import TemplateRenderer from '../player/TemplateRenderer';
 
 // Default mock data for previewing templates with variables
@@ -25,6 +25,7 @@ const Templates = () => {
   const [mockData, setMockData] = useState(JSON.stringify(DEFAULT_MOCK_DATA, null, 2));
   const [showMockEditor, setShowMockEditor] = useState(false);
   const [jsonError, setJsonError] = useState(null);
+  const [previewZoom, setPreviewZoom] = useState(100);
 
   const defaultLayout = {
     elements: [
@@ -257,40 +258,95 @@ const Templates = () => {
 
               {/* Live Preview Panel */}
               <div className="flex flex-col w-1/2 min-h-0">
-                <div className="flex items-center gap-1.5 bg-[#050505] border border-neutral-800 border-b-0 px-3 py-1.5 shrink-0">
+                {/* Preview toolbar with zoom controls */}
+                <div className="flex items-center gap-2 bg-[#050505] border border-neutral-800 border-b-0 px-3 py-1.5 shrink-0">
                   <Eye size={10} className="text-cyan-500" />
                   <span className="text-[10px] text-cyan-500/70">LIVE_PREVIEW · 1920x1080</span>
-                  <span className="ml-auto text-[9px] text-neutral-600">Com Mock Data</span>
-                </div>
-                <div
-                  className="flex-1 bg-neutral-950 border border-neutral-800 relative overflow-hidden"
-                  style={{ aspectRatio: '16/9' }}
-                >
-                  {/* Background gradient simulating video */}
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neutral-800 to-black" />
                   
-                  {/* Simulated scene content */}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none select-none">
-                    <Layout size={64} className="text-neutral-500" />
+                  {/* Zoom Controls */}
+                  <div className="ml-auto flex items-center gap-1.5">
+                    <button
+                      onClick={() => setPreviewZoom(z => Math.max(25, z - 25))}
+                      className="p-1 text-neutral-500 hover:text-neutral-200 transition-colors"
+                      title="Zoom Out"
+                    >
+                      <ZoomOut size={12} />
+                    </button>
+                    <input
+                      type="range"
+                      min="25"
+                      max="200"
+                      step="25"
+                      value={previewZoom}
+                      onChange={e => setPreviewZoom(Number(e.target.value))}
+                      className="w-20 h-1 accent-cyan-500"
+                      title={`Zoom: ${previewZoom}%`}
+                    />
+                    <button
+                      onClick={() => setPreviewZoom(z => Math.min(200, z + 25))}
+                      className="p-1 text-neutral-500 hover:text-neutral-200 transition-colors"
+                      title="Zoom In"
+                    >
+                      <ZoomIn size={12} />
+                    </button>
+                    <span className="text-[9px] font-mono text-cyan-600 w-8 text-right">{previewZoom}%</span>
+                    {previewZoom !== 100 && (
+                      <button
+                        onClick={() => setPreviewZoom(100)}
+                        className="p-1 text-neutral-600 hover:text-amber-400 transition-colors"
+                        title="Reset zoom"
+                      >
+                        <Maximize2 size={11} />
+                      </button>
+                    )}
                   </div>
+                </div>
 
-                  {/* Template Renderer */}
-                  {parsedLayout ? (
-                    <div className="absolute inset-0">
-                      <TemplateRenderer layout={parsedLayout} data={parsedMockData} />
+                {/* Preview viewport — scrollable when zoomed in */}
+                <div
+                  className="flex-1 bg-neutral-950 border border-neutral-800 relative overflow-auto"
+                  style={{ minHeight: 0 }}
+                >
+                  {/* Inner canvas scaled at 1920x1080, then CSS-scaled by zoom */}
+                  <div
+                    style={{
+                      width: 1920,
+                      height: 1080,
+                      transform: `scale(${previewZoom / 100})`,
+                      transformOrigin: 'top left',
+                      // Make the scroll container aware of the scaled size
+                      marginBottom: `${1080 * (previewZoom / 100) - 1080}px`,
+                      marginRight: `${1920 * (previewZoom / 100) - 1920}px`,
+                      position: 'relative',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {/* Background gradient simulating video */}
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neutral-800 to-black" />
+                    
+                    {/* Simulated scene content */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none select-none">
+                      <Layout size={160} className="text-neutral-500" />
                     </div>
-                  ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                      <Code size={24} className="text-neutral-700" />
-                      <p className="text-[10px] font-mono text-neutral-700 uppercase">
-                        {jsonError ? 'JSON inválido' : 'Edite o JSON para visualizar'}
-                      </p>
+
+                    {/* Template Renderer — real 1920×1080 pixel space */}
+                    {parsedLayout ? (
+                      <div className="absolute inset-0">
+                        <TemplateRenderer layout={parsedLayout} data={parsedMockData} />
+                      </div>
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                        <Code size={60} className="text-neutral-800" />
+                        <p className="text-2xl font-mono text-neutral-800 uppercase tracking-widest">
+                          {jsonError ? 'JSON inválido' : 'Edite o JSON para visualizar'}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Resolution watermark */}
+                    <div className="absolute top-3 right-4 bg-black/60 px-3 py-1 text-sm font-mono text-neutral-500">
+                      1920×1080
                     </div>
-                  )}
-                  
-                  {/* Scale indicator */}
-                  <div className="absolute top-2 right-2 bg-black/60 px-2 py-0.5 text-[9px] font-mono text-neutral-500">
-                    1920×1080
                   </div>
                 </div>
               </div>
