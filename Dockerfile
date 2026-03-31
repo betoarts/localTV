@@ -35,7 +35,6 @@ COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 ENV NODE_ENV=production
 ENV DATA_DIR=/data
 ENV PORT=3000
-ENV ADMIN_PASSWORD=admin123
 
 VOLUME ["/data"]
 EXPOSE 3000
