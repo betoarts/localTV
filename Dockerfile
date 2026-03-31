@@ -19,7 +19,7 @@ RUN apk add --no-cache libc6-compat python3 make g++
 
 # Backend setup
 COPY backend/package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Clean up build tools (but keep libc6-compat for runtime)
 RUN apk del python3 make g++

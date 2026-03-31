@@ -21,6 +21,7 @@
   },
   "overrides": {
     "brace-expansion": "5.0.5",
+    "picomatch": "4.0.4",
     "path-to-regexp": "8.4.0"
   }
 }
