@@ -1,95 +1,73 @@
 # Arquitetura do Sistema - LocalTV
 
-Este documento descreve a arquitetura atual do LocalTV, incluindo o modelo multi-cliente, persistencia de dados e fluxo entre Admin, API e Player.
+Este documento descreve a arquitetura do LocalTV, incluindo o modelo multi-cliente, persistência de dados e fluxos entre Admin, API e Player.
 
-## Visao Geral
+## Visão Geral
 
 O LocalTV roda como um backend Node.js/Express com SQLite e Socket.io, servindo uma SPA React/Vite.
 
-- `backend/server.js`: API REST, uploads, arquivos estaticos e eventos em tempo real.
-- `backend/database.js`: inicializacao e migracoes incrementais do schema SQLite.
-- `frontend/src/admin`: painel administrativo.
-- `frontend/src/player`: player de exibicao acessado em `/player/:deviceId`.
+- `backend/server.js`: API REST, uploads, arquivos estáticos, eventos em tempo real e integração de clima.
+- `backend/database.js`: Inicialização e migrações incrementais do schema SQLite, com otimizações de performance.
+- `frontend/src/admin`: Painel administrativo (Dashboard responsivo).
+- `frontend/src/player`: Engine de exibição (Player) com suporte a resoluções dinâmica e preloading.
 
-## Modelo Multi-Cliente
+## Modelo Multi-Cliente (Tenancy)
 
-O sistema suporta multiplos clientes logicos.
+O sistema suporta múltiplos clientes lógicos em uma única instância.
 
-- O cliente ativo e enviado pelo frontend no header `x-client-id`.
-- `devices`, `media`, `playlists`, `playlist_items` e `templates` possuem `client_id`.
-- O cliente `default` e criado automaticamente para compatibilidade com bases legadas.
-- O admin pode alternar o cliente ativo sem mudar de instancia da aplicacao.
+- **Identificação:** O cliente ativo é enviado pelo frontend no header `x-client-id`.
+- **Isolamento:** Entidades como `devices`, `media`, `playlists` e `templates` possuem `client_id`.
+- **Compatibilidade:** O cliente `default` é usado para bases legadas.
+- **Segurança:** O backend valida se os recursos vinculados (ex: template em playlist) pertencem ao mesmo `client_id`.
 
-Esse isolamento vale para CRUD, listagens, uploads e relacoes entre entidades. O backend tambem impede vinculos cruzados, por exemplo template de um cliente em playlist ou overlay de outro.
+## Fluxo de Tempo Real (Socket.io)
 
-## Persistencia e Arquivos
+Os players se conectam e entram em rooms específicas (`device_{id}`).
 
-O backend usa `DATA_DIR` como raiz persistente.
+1. **Registro:** O player envia `register_device`. O servidor atualiza o status para `online`.
+2. **Updates:** Alterações no Admin disparam `command_update` (ajustes de tela) ou `playlist:update`.
+3. **Monitoring:** Heartbeats mantêm a conexão ativa. Dispositivos sem sinal por >90s são marcados como `offline`.
+4. **Dashboard:** O evento `now_playing` permite que o Admin visualize o que cada tela está exibindo em tempo real.
 
-- Banco SQLite: `DATA_DIR/data.db`
-- Midias: `DATA_DIR/media/<client_id>/<tipo>/...`
-- Compatibilidade antiga: `DATA_DIR/uploads/`
+## Funcionalidades Técnicas Avançadas
 
-Tipos de midia atualmente roteados:
+### 🌤️ Weather API Flow
+A integração de clima evita a necessidade de chaves de API no frontend e implementa cache:
+1. **Geocoding:** O backend consulta a `Open-Meteo Geocoding API` para converter o nome da cidade em coordenadas.
+2. **Forecast:** As coordenadas são usadas na `Open-Meteo Forecast API`.
+3. **Cache:** Resultados são cacheados por 10 minutos para evitar rate-limiting e acelerar o carregamento dos players.
 
-- `videos`
-- `images`
-- `html`
-- `files`
+### ✍️ Engine de Overlays
+Os overlays evoluíram de simples textos para camadas ricas de mídia:
+- **Posicionamento:** Uso de coordenadas `pos_x` e `pos_y` (0-100) para posicionamento absoluto.
+- **Mídia:** Suporte a ícones (Lucide) e imagens customizadas sobrepostas.
+- **Templates:** Overlays podem referenciar layouts JSON complexos definidos na tabela `templates`.
 
-Em desenvolvimento local, `DATA_DIR` cai por padrao na pasta `backend/`. Em container, o `Dockerfile` aponta `DATA_DIR=/data`.
+### 💾 Portabilidade & Backup
+O sistema permite migração completa entre servidores via JSON:
+- **Exportação:** Reúne registros de todas as tabelas (exceto binários físicos).
+- **Importação:** Executa um `DELETE/INSERT` atômico dentro de uma transação SQL para garantir a integridade da nova configuração.
 
-## Fluxo de Tempo Real
+## Persistência e Performance
 
-Os players se conectam via Socket.io e entram em uma room por dispositivo.
+### Banco de Dados
+O SQLite utiliza índices estratégicos para garantir fluidez mesmo com grandes volumes de mídia:
+- `idx_devices_client`, `idx_media_client`, etc: Aceleram o filtro por cliente.
+- `idx_playlist_items_order`: Otimiza a renderização da sequência de reprodução.
 
-Fluxo principal:
-
-1. O player abre `/player/:deviceId`.
-2. O frontend consulta o device, descobre seu `client_id` e passa a operar nesse escopo.
-3. O player se registra via `register_device`.
-4. O servidor envia `command_update`, `playlist:update` e `overlays_updated` conforme alteracoes administrativas.
-5. Heartbeats atualizam `last_seen` e permitem marcar devices offline.
-
-## Schema Principal
-
-Tabelas centrais:
-
-- `clients`: tenants logicos.
-- `devices`: configuracao e status de cada tela.
-- `media`: catalogo de arquivos fisicos.
-- `playlists`: listas de reproducao por cliente.
-- `playlist_items`: itens ordenados da playlist, podendo referenciar midia ou template.
-- `templates`: layouts JSON reutilizaveis por cliente.
-- `text_overlays`: overlays vinculados a device ou item de playlist.
-- `device_playlists`: estrutura auxiliar para evolucao futura.
-
-O schema e migrado de forma incremental no startup. Colunas novas sao adicionadas com `ALTER TABLE ... ADD COLUMN` quando necessario, e dados antigos recebem `client_id = 'default'`.
-
-## Export e Import
-
-`GET /api/config/export` exporta configuracao em JSON.
-
-- Inclui `clients`, `devices`, `playlists`, `playlist_items`, `media`, `templates`, `text_overlays` e `device_playlists`.
-- Nao exporta os binarios de midia, apenas registros.
-
-`POST /api/config/import` reconstroi a configuracao a partir desse JSON.
+### Estrutura de Arquivos
+O `DATA_DIR` organiza as mídias por cliente:
+- `DATA_DIR/media/<client_id>/videos/`
+- `DATA_DIR/media/<client_id>/images/`
+- `DATA_DIR/media/<client_id>/html/`
 
 ## Deploy
 
-O `Dockerfile` usa multi-stage build:
+O `Dockerfile` utiliza multi-stage build:
+1. **Frontend Stage:** Build otimizado com Vite.
+2. **Runtime Stage:** Node.js servindo a API e os arquivos estáticos do frontend.
 
-1. Build do frontend com Vite.
-2. Runtime Node.js servindo API e frontend compilado.
-
-Para producao:
-
-- monte um volume em `/data`
-- defina `ADMIN_PASSWORD`
-- mantenha o healthcheck em `/health`
-
-## Observacoes Operacionais
-
-- O frontend admin depende do `localStorage` para lembrar o cliente ativo.
-- O player descobre o `client_id` pelo device carregado.
-- O isolamento por cliente hoje nao vale apenas como filtro visual; ele e aplicado no backend.
+**Recomendações:**
+- Monte um volume em `/data`.
+- Configure `ADMIN_PASSWORD` via variável de ambiente.
+- Use `LOG_REQUESTS=1` para debug de rede.

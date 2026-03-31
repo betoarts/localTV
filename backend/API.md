@@ -1,256 +1,126 @@
-# Referencia da API e Sockets - LocalTV
+# Referência da API e Sockets - LocalTV
 
 Este documento descreve a API REST e os eventos Socket.io atualmente expostos pelo backend.
 
-## Convencoes
+---
 
-- Base HTTP: `/api`
-- Healthcheck: `/health`
-- Escopo multi-cliente: header `x-client-id`
-- Fallback para bases antigas: cliente `default`
+## Convenções
 
-Sem `x-client-id`, a API opera no cliente `default`.
+- **Base HTTP:** `/api`
+- **Healthcheck:** `/health`
+- **Multi-Tenant:** Header `x-client-id`
+- **Fallback:** Cliente `default`
 
-## Autenticacao
+---
+
+## 🔐 Autenticação
 
 ### `POST /api/auth/login`
+Autentica o acesso ao painel administrativo.
+- **Body:** `{ "password": "admin123" }`
+- **Resposta:** `{ "success": true, "token": "v0_token" }`
 
-Body:
+---
 
-```json
-{ "password": "admin123" }
-```
-
-Resposta:
-
-```json
-{ "success": true, "token": "fake-jwt-token-for-now" }
-```
-
-## Health e Metricas
+## 📊 Saúde e Métricas
 
 ### `GET /health`
-
-Retorna status simples do processo e do banco.
+Verifica se o servidor e o banco SQLite estão operacionais.
 
 ### `GET /api/metrics/clients`
-
-Resumo agregado por cliente para dashboard administrativo.
+Resumo quantitativo por cliente (devices online, total de mídias, etc).
 
 ### `GET /api/metrics/clients/summary?since_minutes=60`
+Atividade de devices vistos recentemente em uma janela de tempo específica.
 
-Resumo de atividade recente por janela de tempo.
+---
 
-## Clients
+## 🏙️ Clima (Weather)
 
-### `GET /api/clients`
-
-Lista clientes.
-
-### `POST /api/clients`
-
-Cria cliente.
-
-```json
-{ "id": "tenant-a", "name": "Tenant A" }
-```
-
-### `PUT /api/clients/:id`
-
-Renomeia cliente.
-
-### `DELETE /api/clients/:id`
-
-Remove cliente sem dados associados. O backend bloqueia exclusao quando ha `devices`, `playlists` ou `media`.
-
-## Media
-
-### `GET /api/media`
-
-Lista midias do cliente ativo.
-
-### `POST /api/media/upload`
-
-Upload multipart com campo `file`.
-
-Resposta inclui `client_id` e `path`, por exemplo:
-
+### `GET /api/weather?city=Canela,RS`
+Proxy para Open-Meteo com geocoding automático e cache de 10 min.
+- **Parâmetros:** `city` (ex: "São Paulo" ou "Gramado,RS").
+- **Resposta:**
 ```json
 {
-  "id": 10,
-  "filename": "1774805865219.jpg",
-  "type": "image",
-  "originalname": "sample.jpg",
-  "path": "/media/tenant-a/images/1774805865219.jpg",
-  "client_id": "tenant-a"
+  "city": "Canela",
+  "temperature": 22,
+  "feelsLike": 24,
+  "humidity": 65,
+  "windSpeed": 10,
+  "weatherCode": 0,
+  "updatedAt": "2024-03-31T..."
 }
 ```
 
-### `DELETE /api/media/:id`
+---
 
-Remove o registro e tenta excluir o arquivo fisico do cliente.
-
-## Playlists
-
-### `GET /api/playlists`
-
-Lista playlists do cliente ativo.
-
-### `POST /api/playlists`
-
-Cria playlist no cliente ativo.
-
-### `PUT /api/playlists/:id`
-
-Atualiza nome da playlist.
-
-### `DELETE /api/playlists/:id`
-
-Remove playlist, itens e desvinculos do cliente.
-
-### `GET /api/playlists/:id/items`
-
-Lista itens da playlist com joins de midia e template.
-
-### `POST /api/playlists/:id/items`
-
-Adiciona item na playlist.
-
-Body aceito:
-
-```json
-{
-  "media_id": 1,
-  "template_id": null,
-  "duration": 10,
-  "data_json": null
-}
-```
-
-`template_id`, quando informado, precisa pertencer ao mesmo cliente.
-
-### `PUT /api/playlists/:playId/items/:itemId`
-
-Atualiza duracao e `data_json` do item.
-
-### `DELETE /api/playlists/:playId/items/:itemId`
-
-Remove item.
-
-### `PUT /api/playlists/:id/items/reorder`
-
-Reordena itens.
-
-```json
-{ "items": [4, 2, 3] }
-```
-
-## Devices
+## 🖥️ Devices (Dispositivos)
 
 ### `GET /api/devices`
-
-Lista devices do cliente ativo.
+Lista dispositivos do cliente ativo.
 
 ### `POST /api/devices`
-
-Cria device.
+Cria um novo terminal.
+- **Body:**
+```json
+{
+  "name": "TV Recepção",
+  "orientation": "landscape",
+  "resolution": "1080p", 
+  "transition": "fade",
+  "muted": 1,
+  "is_playing": 1
+}
+```
+*Resoluções suportadas: `auto`, `720p`, `1080p`, `4k`.*
 
 ### `PUT /api/devices/:id`
+Altera configurações. Dispara `command_update` e `playlist:update` via Socket para o dispositivo físico.
 
-Atualiza configuracao do device.
+---
 
-### `GET /api/devices/:id`
-
-Consulta device individual. Pode receber `?client_id=...` para validacao explicita no player.
-
-### `DELETE /api/devices/:id`
-
-Remove device do cliente.
-
-## Templates
-
-### `GET /api/templates`
-
-Lista templates do cliente ativo.
-
-### `POST /api/templates`
-
-Cria template no cliente ativo.
-
-### `PUT /api/templates/:id`
-
-Atualiza template do cliente ativo.
-
-### `DELETE /api/templates/:id`
-
-Remove template do cliente ativo.
-
-## Overlays
-
-### `GET /api/overlays`
-
-Lista overlays ativos/inativos visiveis para o cliente.
-
-### `GET /api/overlays/target/:type/:id`
-
-Lista overlays ativos para um alvo especifico.
-
-### `GET /api/overlays/playlist-items/:id`
-
-Lista overlays ativos dos itens de uma playlist.
-
-### `POST /api/overlays/upload-image`
-
-Upload multipart com campo `image`. O arquivo vai para a pasta de imagens do cliente ativo.
+## ✍️ Overlays (Camadas de Texto e Mídia)
 
 ### `POST /api/overlays`
+Cria uma camada sobreposta para um dispositivo ou item de playlist.
+- **Body estendido:**
+```json
+{
+  "text": "Bem-vindo!",
+  "target_type": "device",
+  "pos_x": 50, "pos_y": 90,
+  "font_family": "Inter",
+  "icon_name": "Cloud",
+  "image_path": "/media/default/images/logo.png",
+  "animation": "marquee"
+}
+```
 
-Cria overlay. `target_id` deve pertencer ao cliente ativo. `template_id`, quando presente, tambem.
+### `POST /api/overlays/upload-image`
+Upload de imagem para uso em overlays. Retorna o `path` para ser usado no POST acima.
 
-### `PUT /api/overlays/:id`
+---
 
-Atualiza overlay existente.
-
-### `DELETE /api/overlays/:id`
-
-Remove overlay.
-
-## Configuracao
+## 💾 Configuração (Backup)
 
 ### `GET /api/config/export`
-
-Exporta configuracao em JSON.
-
-Inclui:
-
-- `clients`
-- `devices`
-- `playlists`
-- `playlist_items`
-- `media`
-- `templates`
-- `text_overlays`
-- `device_playlists`
+Faz o download de um arquivo JSON contendo toda a base de dados lógica (clients, devices, playlists, media records, overlays).
 
 ### `POST /api/config/import`
+Importa um arquivo JSON exportado anteriormente. **Atenção:** Este processo limpa as tabelas existentes e as substitui pelos dados do arquivo.
 
-Importa configuracao a partir do JSON exportado. Os binarios de midia nao sao reimportados por esse endpoint.
+---
 
-## Eventos Socket.io
+## 🔌 Eventos Socket.io
 
-### Cliente para servidor
+### Cliente -> Servidor
+- `register_device`: Inicia a sessão da TV.
+- `heartbeat`: Mantém o status `online`.
+- `now_playing`: Informa a mídia atual para o dashboard (Live Preview).
 
-- `register_device`
-- `register`
-- `heartbeat`
-- `now_playing`
-- `request_dashboard`
-
-### Servidor para cliente
-
-- `devices_updated`
-- `playlist_updated`
-- `playlist:update`
-- `overlays_updated`
-- `command_update`
-- `dashboard_update`
+### Servidor -> Cliente
+- `playlist:update`: Envia a nova lista de reprodução formatada.
+- `command_update`: Atualiza resolução, transição, volume e status do player.
+- `overlays_updated`: Força o recarregamento dos overlays na tela.
+- `dashboard_update`: Notifica o admin sobre o que está passando em cada TV.

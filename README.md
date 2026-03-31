@@ -8,17 +8,18 @@
 
 - **📦 Biblioteca de Mídias (Ingestão):** Suporte para imagens e vídeos com upload direto via painel administrativo.
 - **📜 Gerenciamento de Playlists:** Crie sequências de exibição personalizadas com ordem e duração ajustáveis.
-- **🏢 Multi-Cliente:** Isolamento por `client_id` para dispositivos, mídias, playlists, itens e templates.
+- **🏢 Multi-Cliente:** Isolamento por `client_id` para dispositivos, mídias, playlists, itens e templates (Tenancy).
 - **🖥️ Controle de Dispositivos:**
   - Gerencie múltiplos terminais simultaneamente.
   - Sincronização em tempo real via WebSockets (Socket.io).
-  - Configuração de orientação (Vertical/Horizontal), resolução e transições.
-- **✍️ Overlays de Texto Dinâmicos:**
-  - Adicione barras de notícias (letreiros), avisos e logos sobre as mídias.
-  - Animações variadas: Marquee (rolagem), Fade, Pulse, Typewriter, etc.
-  - Posicionamento flexível na tela.
-- **🛡️ Painel Administrativo:** Interface intuitiva protegida por senha para controle total da rede de telas.
-- **💾 Backup & Portabilidade:** Exportação e importação completa de configurações em JSON.
+  - Configuração de orientação (Vertical/Horizontal), resolução (720p, 1080p, 4K) e transições.
+- **🌤️ Widget de Clima Dinâmico:** Integração nativa com a API Open-Meteo para exibir clima em tempo real nas telas baseado na cidade informada.
+- **✍️ Overlays de Texto & Mídia Dinâmicos:**
+  - Adicione letreiros, avisos, logos e ícones sobre as mídias.
+  - Animações variadas e posicionamento preciso (coordenadas X/Y).
+- **💾 Backup & Portabilidade:** Exportação e importação completa de toda a configuração do sistema em arquivos JSON.
+- **🛡️ Painel Administrativo:** Interface intuitiva e responsiva (Mobile/Desktop) protegida por senha para controle total da rede.
+- **⚡ Performance Otimizada:** Banco de dados indexado e preloading inteligente de mídias no player.
 
 ---
 
