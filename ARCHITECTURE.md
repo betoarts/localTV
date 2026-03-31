@@ -1,56 +1,95 @@
-# 🏛️ Arquitetura do Sistema - LocalTV
+# Arquitetura do Sistema - LocalTV
 
-Este documento descreve a estrutura técnica, o fluxo de dados e os princípios de design do LocalTV.
+Este documento descreve a arquitetura atual do LocalTV, incluindo o modelo multi-cliente, persistencia de dados e fluxo entre Admin, API e Player.
 
----
+## Visao Geral
 
-## 🏗️ Visão Geral da Pilha (Tech Stack)
+O LocalTV roda como um backend Node.js/Express com SQLite e Socket.io, servindo uma SPA React/Vite.
 
-O LocalTV utiliza uma arquitetura Monolítica Desacoplada:
-- **Backend (Node.js/Express):** Atua como o cérebro, gerenciando a persistência, o sistema de arquivos e a sinalização em tempo real.
-- **Frontend (React/Vite):** Uma aplicação única (SPA) que serve tanto para o **Painel Administrativo** quanto para o **Player de Exibição**.
-- **Comunicação:**
-  - **REST API:** Para operações CRUD (Criar, Ler, Atualizar, Deletar) de configurações.
-  - **WebSockets (Socket.io):** Para controle instantâneo das TVs (ex: trocar playlist agora, atualizar overlay).
+- `backend/server.js`: API REST, uploads, arquivos estaticos e eventos em tempo real.
+- `backend/database.js`: inicializacao e migracoes incrementais do schema SQLite.
+- `frontend/src/admin`: painel administrativo.
+- `frontend/src/player`: player de exibicao acessado em `/player/:deviceId`.
 
----
+## Modelo Multi-Cliente
 
-## 📡 Fluxo de Comunicação em Tempo Real
+O sistema suporta multiplos clientes logicos.
 
-A arquitetura de rede segue o padrão **Pub/Sub** assistido pelo servidor:
+- O cliente ativo e enviado pelo frontend no header `x-client-id`.
+- `devices`, `media`, `playlists`, `playlist_items` e `templates` possuem `client_id`.
+- O cliente `default` e criado automaticamente para compatibilidade com bases legadas.
+- O admin pode alternar o cliente ativo sem mudar de instancia da aplicacao.
 
-1.  **Registro:** Cada Player (TV) se conecta via Socket.io e se registra em uma "sala" (room) baseada no seu `ID`.
-2.  **Monitoramento:** O servidor monitora o status `online`/`offline` e a mídia que está sendo reproduzida no momento (`now_playing`).
-3.  **Comandos:** Quando um administrador altera uma configuração (ex: muda a orientação da tela), o servidor envia um evento `command_update` apenas para a sala daquele dispositivo específico.
-4.  **Broadcast:** Alterações globais (como novos uploads de mídia) são enviadas via broadcast para manter todos os painéis administrativos sincronizados.
+Esse isolamento vale para CRUD, listagens, uploads e relacoes entre entidades. O backend tambem impede vinculos cruzados, por exemplo template de um cliente em playlist ou overlay de outro.
 
----
+## Persistencia e Arquivos
 
-## 🗄️ Modelo de Dados (Schema)
+O backend usa `DATA_DIR` como raiz persistente.
 
-O banco de dados é **SQLite**, escolhido pela simplicidade e facilidade de backup (um único arquivo `data.db`).
+- Banco SQLite: `DATA_DIR/data.db`
+- Midias: `DATA_DIR/media/<client_id>/<tipo>/...`
+- Compatibilidade antiga: `DATA_DIR/uploads/`
 
-### Principais Tabelas:
-- `devices`: Armazena configurações físicas (resolução, orientação) e o link para a playlist ativa.
-- `media`: Registro dos arquivos físicos no diretório `uploads/`.
-- `playlists` & `playlist_items`: Define a sequência e o tempo de exibição de cada mídia.
-- `text_overlays`: Regras de exibição de camadas extras de informação (texto/logo) sobre o conteúdo principal.
+Tipos de midia atualmente roteados:
 
----
+- `videos`
+- `images`
+- `html`
+- `files`
 
-## 🎨 O Motor de Overlays (Overlay Engine)
+Em desenvolvimento local, `DATA_DIR` cai por padrao na pasta `backend/`. Em container, o `Dockerfile` aponta `DATA_DIR=/data`.
 
-Localizado em `frontend/src/player/TextOverlayRenderer.jsx`, este motor é responsável por:
-- **Posicionamento:** Usa classes CSS dinâmicas para fixar elementos em 9 pontos estratégicos da tela.
-- **Animações:** Implementa Keyframes CSS para efeitos de *Marquee*, *Fade*, *Typewriter*, etc.
-- **Blur & Glassmorphism:** Utiliza `backdrop-filter` para garantir legibilidade de texto sobre qualquer vídeo ou imagem.
+## Fluxo de Tempo Real
 
----
+Os players se conectam via Socket.io e entram em uma room por dispositivo.
 
-## 📦 Containerização
+Fluxo principal:
 
-O `Dockerfile` utiliza um processo de **Multi-stage Build**:
-1.  **Build Stage:** Compila o código React para arquivos estáticos otimizados.
-2.  **Production Stage:** Configura um servidor Node.js leve que serve tanto a API quanto os arquivos estáticos do frontend, minimizando o tamanho final da imagem.
+1. O player abre `/player/:deviceId`.
+2. O frontend consulta o device, descobre seu `client_id` e passa a operar nesse escopo.
+3. O player se registra via `register_device`.
+4. O servidor envia `command_update`, `playlist:update` e `overlays_updated` conforme alteracoes administrativas.
+5. Heartbeats atualizam `last_seen` e permitem marcar devices offline.
 
----
+## Schema Principal
+
+Tabelas centrais:
+
+- `clients`: tenants logicos.
+- `devices`: configuracao e status de cada tela.
+- `media`: catalogo de arquivos fisicos.
+- `playlists`: listas de reproducao por cliente.
+- `playlist_items`: itens ordenados da playlist, podendo referenciar midia ou template.
+- `templates`: layouts JSON reutilizaveis por cliente.
+- `text_overlays`: overlays vinculados a device ou item de playlist.
+- `device_playlists`: estrutura auxiliar para evolucao futura.
+
+O schema e migrado de forma incremental no startup. Colunas novas sao adicionadas com `ALTER TABLE ... ADD COLUMN` quando necessario, e dados antigos recebem `client_id = 'default'`.
+
+## Export e Import
+
+`GET /api/config/export` exporta configuracao em JSON.
+
+- Inclui `clients`, `devices`, `playlists`, `playlist_items`, `media`, `templates`, `text_overlays` e `device_playlists`.
+- Nao exporta os binarios de midia, apenas registros.
+
+`POST /api/config/import` reconstroi a configuracao a partir desse JSON.
+
+## Deploy
+
+O `Dockerfile` usa multi-stage build:
+
+1. Build do frontend com Vite.
+2. Runtime Node.js servindo API e frontend compilado.
+
+Para producao:
+
+- monte um volume em `/data`
+- defina `ADMIN_PASSWORD`
+- mantenha o healthcheck em `/health`
+
+## Observacoes Operacionais
+
+- O frontend admin depende do `localStorage` para lembrar o cliente ativo.
+- O player descobre o `client_id` pelo device carregado.
+- O isolamento por cliente hoje nao vale apenas como filtro visual; ele e aplicado no backend.

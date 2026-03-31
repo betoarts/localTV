@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { getDevice, getPlaylistItems, getOverlaysByTarget, getPlaylistItemsOverlays, API_BASE } from '../api';
+import { getDevice, getPlaylistItems, getOverlaysByTarget, getPlaylistItemsOverlays, API_BASE, setClientId } from '../api';
 import TextOverlayRenderer from './TextOverlayRenderer';
 import TemplateRenderer from './TemplateRenderer';
 
@@ -47,6 +47,7 @@ const Player = () => {
   const itemsRef = useRef([]);
   const timeoutRef = useRef(null);
   const videoRef = useRef(null);
+  const heartbeatRef = useRef(null);
 
   const fetchOverlays = async (d) => {
     try {
@@ -65,6 +66,9 @@ const Player = () => {
     try {
       const d = await getDevice(deviceId);
       setDevice(d);
+      if (d?.client_id) {
+        setClientId(d.client_id);
+      }
 
       if (d.playlist_id) {
         const plItems = await getPlaylistItems(d.playlist_id);
@@ -94,6 +98,10 @@ const Player = () => {
     socketRef.current.on('connect', () => {
       console.log('Connected to server');
       socketRef.current.emit('register_device', deviceId);
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      heartbeatRef.current = setInterval(() => {
+        socketRef.current.emit('heartbeat', deviceId);
+      }, 30000);
     });
 
     socketRef.current.on('command_update', (data) => {
@@ -110,6 +118,13 @@ const Player = () => {
       });
     });
 
+    socketRef.current.on('playlist:update', (rows) => {
+      if (!Array.isArray(rows)) return;
+      setItems(rows);
+      itemsRef.current = rows;
+      setCurrentIndex(0);
+    });
+
     socketRef.current.on('overlays_updated', () => {
       setDevice(prev => {
         fetchOverlays(prev);
@@ -120,6 +135,7 @@ const Player = () => {
     return () => {
       socketRef.current.disconnect();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     };
   }, [deviceId]);
 

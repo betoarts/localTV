@@ -15,10 +15,8 @@ services:
     env:
       PORT: "3000"
       NODE_ENV: "production"
+      LOG_REQUESTS: "1"
     mounts:
       - type: volume
-        name: localtv_uploads
-        mountPath: /workspace/backend/uploads
-      - type: volume
         name: localtv_data
-        mountPath: /workspace/backend    # Maps the entire backend to persist data.db and uploads together
+        mountPath: /data    # Persists data.db and /media

@@ -11,6 +11,12 @@ const Dashboard = () => {
   const [stats, setStats] = useState({ devices: 0, media: 0, playlists: 0 });
   const [devices, setDevices] = useState([]);
   const [playbacks, setPlaybacks] = useState({});
+  const [clientMetrics, setClientMetrics] = useState({ clients: [], totals: [], recent: [], window: 60 });
+  const [metricsWindow, setMetricsWindow] = useState(() => {
+    const stored = localStorage.getItem('localtv_metrics_window');
+    const parsed = stored ? Number(stored) : 60;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 60;
+  });
 
   useEffect(() => {
     Promise.all([getDevices(), getMedia(), getPlaylists()]).then(
@@ -23,6 +29,28 @@ const Dashboard = () => {
         setDevices(devicesData);
       }
     ).catch(console.error);
+
+    const fetchMetrics = async (windowMinutes) => {
+      try {
+        const [clientsRes, summaryRes] = await Promise.all([
+          fetch(`${API_BASE}/api/metrics/clients`),
+          fetch(`${API_BASE}/api/metrics/clients/summary?since_minutes=${windowMinutes}`)
+        ]);
+        if (!clientsRes.ok || !summaryRes.ok) return;
+        const clientsData = await clientsRes.json();
+        const summaryData = await summaryRes.json();
+        setClientMetrics({
+          clients: clientsData.clients || [],
+          totals: summaryData.devices_total || [],
+          recent: summaryData.devices_seen_recent || [],
+          window: summaryData.since_minutes || windowMinutes
+        });
+      } catch {
+        // ignore metrics failures
+      }
+    };
+
+    fetchMetrics(metricsWindow);
     
     const socket = io(SOCKET_URL);
     
@@ -36,10 +64,38 @@ const Dashboard = () => {
     
     socket.on('devices_updated', () => {
       getDevices().then(setDevices).catch(console.error);
+      fetch(`${API_BASE}/api/metrics/clients/summary?since_minutes=${metricsWindow}`)
+        .then(r => r.ok ? r.json() : null)
+        .then((summaryData) => {
+          if (!summaryData) return;
+          setClientMetrics(prev => ({
+            ...prev,
+            totals: summaryData.devices_total || prev.totals,
+            recent: summaryData.devices_seen_recent || prev.recent,
+            window: summaryData.since_minutes || prev.window
+          }));
+        })
+        .catch(() => {});
     });
 
     return () => socket.disconnect();
   }, []);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/metrics/clients/summary?since_minutes=${metricsWindow}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((summaryData) => {
+        if (!summaryData) return;
+        setClientMetrics(prev => ({
+          ...prev,
+          totals: summaryData.devices_total || prev.totals,
+          recent: summaryData.devices_seen_recent || prev.recent,
+          window: summaryData.since_minutes || prev.window
+        }));
+      })
+      .catch(() => {});
+    localStorage.setItem('localtv_metrics_window', String(metricsWindow));
+  }, [metricsWindow]);
 
   const cards = [
     { title: 'Registered_Devices', value: stats.devices, icon: <RadioReceiver size={24} />, link: '/admin/devices', activeColor: 'group-hover:text-cyan-400', activeBorder: 'hover:border-cyan-500' },
@@ -90,6 +146,45 @@ const Dashboard = () => {
         ))}
       </div>
 
+      <div className="bg-[#0a0a0a] border border-neutral-800 p-4 mb-8">
+        <div className="flex items-center gap-2 mb-3">
+          <Activity size={14} className="text-cyan-500" />
+          <span className="text-[10px] uppercase tracking-widest text-neutral-500">Clients_Heartbeat</span>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-widest text-neutral-600">Window</span>
+            <select
+              value={metricsWindow}
+              onChange={(e) => setMetricsWindow(Number(e.target.value))}
+              className="bg-neutral-900 border border-neutral-800 text-neutral-300 text-[10px] font-mono tracking-widest uppercase px-2 py-1 focus:outline-none focus:border-cyan-500"
+            >
+              <option value={15}>15m</option>
+              <option value={30}>30m</option>
+              <option value={60}>60m</option>
+              <option value={120}>120m</option>
+              <option value={240}>240m</option>
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {(clientMetrics.clients.length ? clientMetrics.clients : [{ id: 'default', name: 'Default' }]).map(c => {
+            const total = clientMetrics.totals.find(t => t.client_id === c.id)?.count || 0;
+            const recent = clientMetrics.recent.find(t => t.client_id === c.id)?.count || 0;
+            return (
+              <div key={c.id} className="border border-neutral-800 bg-[#050505] p-3 flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-xs text-neutral-200 uppercase tracking-widest">{c.name}</span>
+                  <span className="text-[10px] text-neutral-600 uppercase">ID: {c.id}</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] text-neutral-500 uppercase">Seen_60m / Total</div>
+                  <div className="text-sm text-neutral-200">{String(recent).padStart(2, '0')} / {String(total).padStart(2, '0')}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       <h3 className="text-sm font-bold tracking-widest text-neutral-500 uppercase mb-4 border-b border-neutral-800 pb-2 flex items-center gap-2 shrink-0">
         <Activity size={16} className="text-cyan-500" />
         Live_Feed_Monitors
@@ -124,6 +219,7 @@ const Dashboard = () => {
                    <>
                      {currentMedia.type === 'video' ? (
                         <video 
+                          key={`preview-${device.id}-${currentMedia.path}`}
                           src={`${MEDIA_BASE}${currentMedia.path}`}
                           className="w-full h-full object-cover opacity-80 mix-blend-screen scale-105 group-hover:scale-100 transition-transform duration-700"
                           autoPlay
@@ -131,8 +227,16 @@ const Dashboard = () => {
                           loop
                           playsInline
                         />
+                     ) : currentMedia.type === 'template' ? (
+                        <div 
+                          key={`preview-tpl-${device.id}-${currentMedia.name}`}
+                          className="w-full h-full flex items-center justify-center bg-neutral-900/80 opacity-80 mix-blend-screen"
+                        >
+                          <span className="text-[10px] text-cyan-400 uppercase tracking-widest">TEMPLATE: {currentMedia.name}</span>
+                        </div>
                      ) : (
                         <div 
+                          key={`preview-img-${device.id}-${currentMedia.path}`}
                           className="w-full h-full bg-cover bg-center opacity-80 mix-blend-screen scale-105 group-hover:scale-100 transition-transform duration-700" 
                           style={{ backgroundImage: `url(${MEDIA_BASE}${currentMedia.path})` }} 
                         />

@@ -6,7 +6,7 @@ import {
 } from '../api';
 import {
   Type, Plus, Trash2, Edit3, Save, X, Eye, EyeOff,
-  Monitor, ListVideo, ChevronDown, ImagePlus, Image, Upload, FolderOpen,
+  Monitor, ListVideo, ChevronDown, ImagePlus, Image, Upload, FolderOpen, CloudSun,
   // New icons for options
   AlertCircle, CheckCircle, Info, Star, Heart, Flame, Zap, Bell, Shield, ThumbsUp
 } from 'lucide-react';
@@ -29,6 +29,15 @@ const PRESET_POSITIONS = [
   { label: 'Inferior Esquerda', x: 20, y: 1060 },
   { label: 'Inferior Direita', x: 1900, y: 1060 },
   { label: 'Barra Inferior', x: 0, y: 1080 }, // Using Y logic to indicate bottom bar
+];
+
+const WEATHER_POSITIONS = [
+  { value: 'top-right', label: 'Topo Direita' },
+  { value: 'top-left', label: 'Topo Esquerda' },
+  { value: 'bottom-right', label: 'Inferior Direita' },
+  { value: 'bottom-left', label: 'Inferior Esquerda' },
+  { value: 'top-center', label: 'Topo Centro' },
+  { value: 'bottom-center', label: 'Inferior Centro' },
 ];
 
 const ANIMATIONS = [
@@ -94,6 +103,18 @@ const TextOverlays = () => {
   const [templates, setTemplates] = useState([]);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Weather widget state
+  const [isWeatherMode, setIsWeatherMode] = useState(false);
+  const [weatherConfig, setWeatherConfig] = useState({
+    city: 'Canela,RS',
+    position: 'top-right',
+    refreshInterval: 600000,
+    showCondition: false,
+    showHumidity: false,
+    showFeelsLike: false,
+    showWind: false,
+  });
 
   // Drag state
   const previewBoxRef = useRef(null);
@@ -167,13 +188,26 @@ const TextOverlays = () => {
 
   const handleSubmit = async () => {
     if (!form.target_id) return;
-    if (!form.text && !form.image_path && !form.icon_name && !form.template_id) return;
+
+    // For weather mode, we only need the target — content is the widget itself
+    if (!isWeatherMode && !form.text && !form.image_path && !form.icon_name && !form.template_id) return;
 
     const payload = {
       ...form,
       target_id: Number(form.target_id),
       bg_color: hexToRgba(form.bg_color, bgOpacity),
     };
+
+    // If weather mode, inject widget data into data_json
+    if (isWeatherMode) {
+      payload.data_json = JSON.stringify({
+        widget: 'weather',
+        ...weatherConfig,
+      });
+      payload.text = ''; // weather widget has no text
+      payload.duration_seconds = 0; // always permanent
+    }
+
     delete payload.ui_playlist_id; // Remove ui only field
 
     try {
@@ -185,6 +219,8 @@ const TextOverlays = () => {
       setForm({ ...DEFAULT_FORM });
       setEditingId(null);
       setShowForm(false);
+      setIsWeatherMode(false);
+      setWeatherConfig({ city: 'Canela,RS', position: 'top-right', refreshInterval: 600000, showCondition: false, showHumidity: false, showFeelsLike: false, showWind: false });
       setBgOpacity(50);
       fetchAll();
     } catch (err) {
@@ -201,6 +237,29 @@ const TextOverlays = () => {
     if (overlay.target_type === 'playlist_item') {
       const item = allPlaylistItems.find(i => i.id === overlay.target_id);
       if (item) ui_playlist_id = item.playlist_id;
+    }
+
+    // Detect if this is a weather widget overlay
+    let parsedWeather = false;
+    try {
+      const dj = typeof overlay.data_json === 'string' ? JSON.parse(overlay.data_json || '{}') : (overlay.data_json || {});
+      if (dj.widget === 'weather') {
+        parsedWeather = true;
+        setIsWeatherMode(true);
+        setWeatherConfig({
+          city: dj.city || 'Canela,RS',
+          position: dj.position || 'top-right',
+          refreshInterval: dj.refreshInterval || 600000,
+          showCondition: !!dj.showCondition,
+          showHumidity: !!dj.showHumidity,
+          showFeelsLike: !!dj.showFeelsLike,
+          showWind: !!dj.showWind,
+        });
+      }
+    } catch {}
+
+    if (!parsedWeather) {
+      setIsWeatherMode(false);
     }
 
     setForm({
@@ -255,7 +314,7 @@ const TextOverlays = () => {
     return `Playlist #${overlay.target_id}`;
   };
 
-  const hasContent = form.text || form.image_path || form.icon_name || form.template_id;
+  const hasContent = form.text || form.image_path || form.icon_name || form.template_id || isWeatherMode;
 
   // Drag mapping logic
   const handlePointerDown = (e) => {
@@ -369,7 +428,7 @@ const TextOverlays = () => {
           </p>
         </div>
         <button
-          onClick={() => { setShowForm(true); setEditingId(null); setForm({ ...DEFAULT_FORM }); setBgOpacity(50); }}
+          onClick={() => { setShowForm(true); setEditingId(null); setForm({ ...DEFAULT_FORM }); setIsWeatherMode(false); setBgOpacity(50); }}
           className="flex items-center justify-center gap-2 bg-green-600/20 text-green-400 border border-green-500/50 hover:bg-green-500 hover:text-[#050505] px-4 py-3 sm:py-2.5 transition-all text-xs font-bold tracking-widest uppercase"
         >
           <Plus size={16} /> NEW_OVERLAY
@@ -472,7 +531,107 @@ const TextOverlays = () => {
                 </div>
               </div>
 
-              {/* Text Form */}
+              {/* ── WEATHER WIDGET TOGGLE ────────────────────────────── */}
+              <div className="border border-neutral-800 p-3">
+                <button
+                  onClick={() => {
+                    const next = !isWeatherMode;
+                    setIsWeatherMode(next);
+                    if (next) {
+                      setForm(prev => ({ ...prev, text: '', template_id: null, icon_name: '', image_path: '' }));
+                    }
+                  }}
+                  className={`w-full flex items-center justify-center gap-2 py-2.5 text-xs font-mono border transition-all duration-200 ${
+                    isWeatherMode
+                      ? 'bg-sky-600/20 border-sky-500 text-sky-400'
+                      : 'bg-neutral-900 border-neutral-700 text-neutral-400 hover:border-sky-500 hover:text-sky-400'
+                  }`}
+                >
+                  <CloudSun size={16} />
+                  {isWeatherMode ? '☀️ WIDGET CLIMA ATIVO' : 'ADICIONAR WIDGET DE CLIMA'}
+                </button>
+
+                {isWeatherMode && (
+                  <div className="mt-3 space-y-3">
+                    {/* City input */}
+                    <div>
+                      <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Cidade</label>
+                      <input
+                        type="text"
+                        value={weatherConfig.city}
+                        onChange={e => setWeatherConfig(prev => ({ ...prev, city: e.target.value }))}
+                        placeholder="Canela,RS"
+                        className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-3 py-2 text-sm font-mono focus:border-sky-500 focus:outline-none placeholder:text-neutral-600"
+                      />
+                      <p className="text-[9px] font-mono text-neutral-600 mt-1">Formato: Cidade,UF ou Cidade,País (ex: São Paulo,SP • Lisboa,PT)</p>
+                    </div>
+
+                    {/* Position selector */}
+                    <div>
+                      <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Posição na Tela</label>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {WEATHER_POSITIONS.map(pos => (
+                          <button
+                            key={pos.value}
+                            onClick={() => setWeatherConfig(prev => ({ ...prev, position: pos.value }))}
+                            className={`py-1.5 text-[10px] font-mono border transition-all duration-150 ${
+                              weatherConfig.position === pos.value
+                                ? 'bg-sky-600/20 border-sky-500 text-sky-400'
+                                : 'bg-neutral-900 border-neutral-700 text-neutral-400 hover:border-sky-500 hover:text-sky-400'
+                            }`}
+                          >
+                            {pos.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Refresh Interval */}
+                    <div>
+                      <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">
+                        Atualizar a cada: {Math.round(weatherConfig.refreshInterval / 60000)} min
+                      </label>
+                      <input
+                        type="range"
+                        min="60000"
+                        max="3600000"
+                        step="60000"
+                        value={weatherConfig.refreshInterval}
+                        onChange={e => setWeatherConfig(prev => ({ ...prev, refreshInterval: parseInt(e.target.value) }))}
+                        className="w-full accent-sky-500 h-1"
+                      />
+                    </div>
+
+                    {/* Extra detail toggles */}
+                    <div>
+                      <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-2 block">Detalhes extras (opcional)</label>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {[
+                          { key: 'showCondition', label: '☁️ Condição' },
+                          { key: 'showHumidity', label: '💧 Umidade' },
+                          { key: 'showFeelsLike', label: '🌡️ Sensação' },
+                          { key: 'showWind', label: '💨 Vento' },
+                        ].map(opt => (
+                          <button
+                            key={opt.key}
+                            onClick={() => setWeatherConfig(prev => ({ ...prev, [opt.key]: !prev[opt.key] }))}
+                            className={`py-1.5 text-[10px] font-mono border transition-all duration-150 ${
+                              weatherConfig[opt.key]
+                                ? 'bg-sky-600/20 border-sky-500 text-sky-400'
+                                : 'bg-neutral-900 border-neutral-700 text-neutral-500 hover:border-neutral-500'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Text Form (hidden in weather mode) */}
+              {!isWeatherMode && (
               <div>
                 <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Mensagem</label>
                 <textarea
@@ -482,6 +641,7 @@ const TextOverlays = () => {
                   className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-3 py-2 text-sm font-mono focus:border-green-500 focus:outline-none resize-none h-20 placeholder:text-neutral-600"
                 />
               </div>
+              )}
 
               {/* Template Selection */}
               <div>
@@ -821,8 +981,8 @@ const TextOverlays = () => {
                 </div>
 
                 {/* Submit */}
-                <button onClick={handleSubmit} disabled={!hasContent || !form.target_id} className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 disabled:bg-neutral-800 disabled:text-neutral-600 text-black font-mono text-sm px-4 py-3 transition-all duration-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]">
-                  <Save size={16} /> {editingId ? 'ATUALIZAR OVERLAY' : 'SALVAR OVERLAY'}
+                <button onClick={handleSubmit} disabled={!hasContent || !form.target_id} className={`w-full flex items-center justify-center gap-2 ${isWeatherMode ? 'bg-sky-600 hover:bg-sky-500' : 'bg-green-600 hover:bg-green-500'} disabled:bg-neutral-800 disabled:text-neutral-600 text-black font-mono text-sm px-4 py-3 transition-all duration-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]`}>
+                  <Save size={16} /> {editingId ? 'ATUALIZAR OVERLAY' : (isWeatherMode ? '☀️ SALVAR WIDGET CLIMA' : 'SALVAR OVERLAY')}
                 </button>
               </div>
             </div>
@@ -1004,13 +1164,21 @@ const TextOverlays = () => {
                   )}
                 </div>
                 <p className="text-xs sm:text-sm font-mono text-neutral-200 truncate uppercase" style={{ fontFamily: overlay.font_family}}>
-                  {overlay.template_id 
-                    ? `[ TEMPLATE_INJECTED: ${overlay.template_name || '...'} ]` 
-                    : <>
+                  {(() => {
+                    // Detect weather widget
+                    try {
+                      const dj = typeof overlay.data_json === 'string' ? JSON.parse(overlay.data_json || '{}') : (overlay.data_json || {});
+                      if (dj.widget === 'weather') {
+                        return <span className="text-sky-400">☀️ [ WEATHER_WIDGET: {dj.city || 'Canela,RS'} — {dj.position || 'top-right'} ]</span>;
+                      }
+                    } catch {}
+                    // Existing logic
+                    if (overlay.template_id) return `[ TEMPLATE_INJECTED: ${overlay.template_name || '...'} ]`;
+                    return <>
                         {overlay.icon_name && <span className="text-yellow-500 mr-2">[{overlay.icon_name}]</span>}
                         {overlay.text || (overlay.image_path ? '[ IMAGE_DATA_INJECTED ]' : '—')}
-                      </>
-                  }
+                      </>;
+                  })()}
                 </p>
               </div>
             </div>

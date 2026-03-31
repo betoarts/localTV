@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 // Lazy load admin components to reduce initial bundle
 const AdminLayout = lazy(() => import('./admin/AdminLayout'));
 const Dashboard = lazy(() => import('./admin/Dashboard'));
+const Clients = lazy(() => import('./admin/Clients'));
 const MediaLibrary = lazy(() => import('./admin/MediaLibrary'));
 const Playlists = lazy(() => import('./admin/Playlists'));
 const Devices = lazy(() => import('./admin/Devices'));
@@ -35,6 +36,7 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Dashboard />} />
+              <Route path="clients" element={<Clients />} />
               <Route path="media" element={<MediaLibrary />} />
               <Route path="playlists" element={<Playlists />} />
               <Route path="templates" element={<Templates />} />

@@ -18,10 +18,21 @@ const db = new sqlite3.Database(dbPath);
 
 const initDb = () => {
   db.serialize(() => {
+    // Clients (tenants)
+    db.run(`CREATE TABLE IF NOT EXISTS clients (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    // Ensure default client exists for backward compatibility
+    db.run(`INSERT OR IGNORE INTO clients (id, name) VALUES ('default', 'Default')`);
+
     // Devices table
     db.run(`CREATE TABLE IF NOT EXISTS devices (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
+      client_id TEXT DEFAULT 'default',
       playlist_id INTEGER,
       orientation TEXT DEFAULT 'landscape',
       resolution TEXT DEFAULT 'auto',
@@ -40,6 +51,8 @@ const initDb = () => {
       // Ignore error if column already exists
     });
 
+    // Gracefully add client_id column
+    db.run("ALTER TABLE devices ADD COLUMN client_id TEXT DEFAULT 'default'", (err) => {});
 
     // Gracefully add muted column 
     db.run("ALTER TABLE devices ADD COLUMN muted INTEGER DEFAULT 1", (err) => {
@@ -58,19 +71,22 @@ const initDb = () => {
       filename TEXT NOT NULL,
       type TEXT NOT NULL,
       duration INTEGER DEFAULT 10,
-      path TEXT NOT NULL
+      path TEXT NOT NULL,
+      client_id TEXT DEFAULT 'default'
     )`);
 
     // Playlists table
     db.run(`CREATE TABLE IF NOT EXISTS playlists (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL
+      name TEXT NOT NULL,
+      client_id TEXT DEFAULT 'default'
     )`);
 
     // Playlist items
     db.run(`CREATE TABLE IF NOT EXISTS playlist_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       playlist_id INTEGER,
+      client_id TEXT DEFAULT 'default',
       media_id INTEGER,
       template_id INTEGER,
       item_order INTEGER,
@@ -81,17 +97,34 @@ const initDb = () => {
       FOREIGN KEY(template_id) REFERENCES templates(id)
     )`);
 
+    // Device playlists (for future multi-playlist support)
+    db.run(`CREATE TABLE IF NOT EXISTS device_playlists (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      device_id INTEGER NOT NULL,
+      playlist_id INTEGER NOT NULL,
+      assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(device_id) REFERENCES devices(id),
+      FOREIGN KEY(playlist_id) REFERENCES playlists(id)
+    )`);
+
     // Templates table
     db.run(`CREATE TABLE IF NOT EXISTS templates (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       json_layout TEXT NOT NULL,
+      client_id TEXT DEFAULT 'default',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
     // Gracefully add template_id and data_json columns to playlist_items if they don't exist
     db.run("ALTER TABLE playlist_items ADD COLUMN template_id INTEGER", (err) => {});
     db.run("ALTER TABLE playlist_items ADD COLUMN data_json TEXT", (err) => {});
+    db.run("ALTER TABLE playlist_items ADD COLUMN client_id TEXT DEFAULT 'default'", (err) => {});
+
+    // Gracefully add client_id columns to media/playlists
+    db.run("ALTER TABLE media ADD COLUMN client_id TEXT DEFAULT 'default'", (err) => {});
+    db.run("ALTER TABLE playlists ADD COLUMN client_id TEXT DEFAULT 'default'", (err) => {});
+    db.run("ALTER TABLE templates ADD COLUMN client_id TEXT DEFAULT 'default'", (err) => {});
 
     // Text Overlays table
     db.run(`CREATE TABLE IF NOT EXISTS text_overlays (
@@ -136,12 +169,24 @@ const initDb = () => {
     db.run("ALTER TABLE text_overlays ADD COLUMN icon_size INTEGER DEFAULT 24", (err) => {});
     db.run("ALTER TABLE text_overlays ADD COLUMN icon_color TEXT DEFAULT '#FFFFFF'", (err) => {});
 
+    // Backfill default client_id for legacy rows
+    db.run("UPDATE devices SET client_id = 'default' WHERE client_id IS NULL", () => {});
+    db.run("UPDATE media SET client_id = 'default' WHERE client_id IS NULL", () => {});
+    db.run("UPDATE playlists SET client_id = 'default' WHERE client_id IS NULL", () => {});
+    db.run("UPDATE playlist_items SET client_id = 'default' WHERE client_id IS NULL", () => {});
+    db.run("UPDATE templates SET client_id = 'default' WHERE client_id IS NULL", () => {});
+
     // --- Performance Optimization Indexes ---
     db.run("CREATE INDEX IF NOT EXISTS idx_devices_playlist ON devices(playlist_id)");
     db.run("CREATE INDEX IF NOT EXISTS idx_playlist_items_playlist ON playlist_items(playlist_id)");
     db.run("CREATE INDEX IF NOT EXISTS idx_playlist_items_order ON playlist_items(item_order)");
     db.run("CREATE INDEX IF NOT EXISTS idx_media_type ON media(type)");
     db.run("CREATE INDEX IF NOT EXISTS idx_overlays_target ON text_overlays(target_type, target_id)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_devices_client ON devices(client_id)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_playlists_client ON playlists(client_id)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_media_client ON media(client_id)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_playlist_items_client ON playlist_items(client_id)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_templates_client ON templates(client_id)");
 
   });
 };

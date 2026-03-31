@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Film, MonitorPlay, RadioReceiver, Activity, Type, LogOut, Settings, Menu, X, Layout } from 'lucide-react';
+import { LayoutDashboard, Film, MonitorPlay, RadioReceiver, Activity, Type, LogOut, Settings, Menu, X, Layout, Users } from 'lucide-react';
+import { getClients, getClientId, setClientId } from '../api';
 
 
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [clients, setClients] = useState([]);
+  const [activeClient, setActiveClient] = useState(getClientId());
 
   const handleLogout = () => {
     localStorage.removeItem('admin_token');
@@ -16,8 +19,22 @@ const AdminLayout = () => {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
 
+  useEffect(() => {
+    getClients()
+      .then(setClients)
+      .catch(() => setClients([{ id: 'default', name: 'Default' }]));
+  }, []);
+
+  const handleClientChange = (e) => {
+    const next = e.target.value;
+    setActiveClient(next);
+    setClientId(next);
+    window.location.reload();
+  };
+
   const navItems = [
     { name: 'DASHBOARD', path: '/admin', icon: <LayoutDashboard size={18} /> },
+    { name: 'CLIENTS', path: '/admin/clients', icon: <Users size={18} /> },
     { name: 'MEDIA_LIB', path: '/admin/media', icon: <Film size={18} /> },
     { name: 'PLAYLISTS', path: '/admin/playlists', icon: <MonitorPlay size={18} /> },
     { name: 'TEMPLATES', path: '/admin/templates', icon: <Layout size={18} /> },
@@ -73,6 +90,23 @@ const AdminLayout = () => {
         <nav className="flex-1 overflow-y-auto py-6 flex flex-col gap-1 px-4">
           <div className="text-[10px] font-mono text-neutral-300 uppercase tracking-widest mb-4 px-2">
             Primary Modules
+          </div>
+
+          <div className="mb-4 px-2">
+            <div className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest mb-2">
+              Active Client
+            </div>
+            <select
+              value={activeClient}
+              onChange={handleClientChange}
+              className="w-full bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs font-mono tracking-widest uppercase px-2 py-2 focus:outline-none focus:border-green-500"
+            >
+              {(Array.isArray(clients) && clients.length ? clients : [{ id: 'default', name: 'Default' }]).map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.id})
+                </option>
+              ))}
+            </select>
           </div>
 
           {navItems.map((item) => {

@@ -4,6 +4,7 @@ import {
   AlertCircle, CheckCircle, Info, Star, Heart, Flame, Zap, Bell, Shield, ThumbsUp, Type
 } from 'lucide-react';
 import TemplateRenderer from './TemplateRenderer';
+import WeatherWidget from './WeatherWidget';
 
 const MEDIA_BASE = API_BASE;
 
@@ -49,6 +50,44 @@ const OverlayItem = ({ overlay }) => {
   }, [overlay.duration_seconds, overlay.id]);
 
   if (!visible) return null;
+
+  // ── WEATHER WIDGET OVERLAY ────────────────────────────────────────────────
+  // If data_json contains { "widget": "weather", ... }, render WeatherWidget
+  const widgetData = (() => {
+    try {
+      const d = typeof overlay.data_json === 'string'
+        ? JSON.parse(overlay.data_json || '{}')
+        : (overlay.data_json || {});
+      return d.widget === 'weather' ? d : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  if (widgetData) {
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: 55,
+          pointerEvents: 'none',
+        }}
+      >
+        <WeatherWidget
+          city={widgetData.city}
+          position={widgetData.position || overlay.position || 'top-right'}
+          refreshInterval={widgetData.refreshInterval}
+          showCondition={widgetData.showCondition}
+          showHumidity={widgetData.showHumidity}
+          showFeelsLike={widgetData.showFeelsLike}
+          showWind={widgetData.showWind}
+        />
+      </div>
+    );
+  }
 
   // ── TEMPLATE OVERLAY: fills the full player area ──────────────────────────
   // TemplateRenderer uses pixel-based positions (1920×1080 space), so it needs

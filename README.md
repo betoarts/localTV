@@ -1,6 +1,6 @@
 # 📺 LocalTV - Sistema de Sinalização Digital (Digital Signage)
 
-**LocalTV** é uma aplicação full-stack moderna e robusta para gerenciamento de terminais de exibição (TVs/Monitores). Permite o controle centralizado de mídias, playlists e notificações em tempo real, ideal para ambientes corporativos, comerciais e informativos.
+**LocalTV** é uma aplicação full-stack para gerenciamento de terminais de exibição (TVs/Monitores). Permite controle centralizado de mídias, playlists, templates e overlays em tempo real, com suporte a multi-cliente.
 
 ---
 
@@ -8,6 +8,7 @@
 
 - **📦 Biblioteca de Mídias (Ingestão):** Suporte para imagens e vídeos com upload direto via painel administrativo.
 - **📜 Gerenciamento de Playlists:** Crie sequências de exibição personalizadas com ordem e duração ajustáveis.
+- **🏢 Multi-Cliente:** Isolamento por `client_id` para dispositivos, mídias, playlists, itens e templates.
 - **🖥️ Controle de Dispositivos:**
   - Gerencie múltiplos terminais simultaneamente.
   - Sincronização em tempo real via WebSockets (Socket.io).
@@ -31,9 +32,11 @@ O LocalTV já vem preparado para rodar em containers, facilitando a implantaçã
 2.  Na raiz do projeto, execute:
     ```bash
     docker build -t localtv .
-    docker run -p 3000:3000 localtv
+    docker run -p 3000:3000 -e ADMIN_PASSWORD=troque-esta-senha -v localtv_data:/data localtv
     ```
 3.  Acesse `http://localhost:3000`.
+
+Para producao, o volume em `/data` e obrigatorio para persistir `data.db` e arquivos de midia.
 
 ### Instalação Manual (Windows)
 
@@ -57,7 +60,7 @@ Para facilitar, incluímos scripts de automação:
 
 ```bash
 ├── backend/            # API, Sockets e Banco de Dados (SQLite)
-│   ├── uploads/        # Repositório de mídias enviadas
+│   ├── database.js     # Schema e migrações incrementais
 │   └── server.js       # Core do servidor
 ├── frontend/           # Aplicação React (Admin e Player)
 │   ├── src/admin/      # Telas de gerenciamento
