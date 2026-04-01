@@ -133,6 +133,19 @@ const TextOverlays = () => {
     showWind: false,
   });
 
+  // News widget state
+  const [isNewsMode, setIsNewsMode] = useState(false);
+  const [newsConfig, setNewsConfig] = useState({
+    feedUrl: '',
+    position: 'bottom-center',
+    refreshInterval: 600000,
+    mode: 'fade',
+    rotationSpeed: 8000,
+    marqueeSpeed: 6,
+    showImages: false,
+    maxItems: 10,
+  });
+
   // Drag state
   const previewBoxRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -206,8 +219,8 @@ const TextOverlays = () => {
   const handleSubmit = async () => {
     if (!form.target_id) return;
 
-    // For weather mode, we only need the target — content is the widget itself
-    if (!isWeatherMode && !form.text && !form.image_path && !form.icon_name && !form.template_id) return;
+    // For widget mode, we only need the target
+    if (!isWeatherMode && !isNewsMode && !form.text && !form.image_path && !form.icon_name && !form.template_id) return;
 
     const payload = {
       ...form,
@@ -215,14 +228,21 @@ const TextOverlays = () => {
       bg_color: hexToRgba(form.bg_color, bgOpacity),
     };
 
-    // If weather mode, inject widget data into data_json
+    // If widget mode, inject widget data into data_json
     if (isWeatherMode) {
       payload.data_json = JSON.stringify({
         widget: 'weather',
         ...weatherConfig,
       });
-      payload.text = ''; // weather widget has no text
-      payload.duration_seconds = 0; // always permanent
+      payload.text = '';
+      payload.duration_seconds = 0;
+    } else if (isNewsMode) {
+      payload.data_json = JSON.stringify({
+        widget: 'news',
+        ...newsConfig,
+      });
+      payload.text = '';
+      payload.duration_seconds = 0;
     }
 
     delete payload.ui_playlist_id; // Remove ui only field
@@ -238,6 +258,8 @@ const TextOverlays = () => {
       setShowForm(false);
       setIsWeatherMode(false);
       setWeatherConfig({ city: 'Canela,RS', position: 'top-right', refreshInterval: 600000, showCondition: false, showHumidity: false, showFeelsLike: false, showWind: false });
+      setIsNewsMode(false);
+      setNewsConfig({ feedUrl: '', position: 'bottom-center', refreshInterval: 600000, mode: 'fade', rotationSpeed: 8000, marqueeSpeed: 6, showImages: false, maxItems: 10 });
       setBgOpacity(50);
       fetchAll();
     } catch (err) {
@@ -256,13 +278,14 @@ const TextOverlays = () => {
       if (item) ui_playlist_id = item.playlist_id;
     }
 
-    // Detect if this is a weather widget overlay
-    let parsedWeather = false;
+    // Detect if this is a widget overlay
+    let parsedWidget = false;
     try {
       const dj = typeof overlay.data_json === 'string' ? JSON.parse(overlay.data_json || '{}') : (overlay.data_json || {});
       if (dj.widget === 'weather') {
-        parsedWeather = true;
+        parsedWidget = true;
         setIsWeatherMode(true);
+        setIsNewsMode(false);
         setWeatherConfig({
           city: dj.city || 'Canela,RS',
           position: dj.position || 'top-right',
@@ -272,11 +295,26 @@ const TextOverlays = () => {
           showFeelsLike: !!dj.showFeelsLike,
           showWind: !!dj.showWind,
         });
+      } else if (dj.widget === 'news') {
+        parsedWidget = true;
+        setIsNewsMode(true);
+        setIsWeatherMode(false);
+        setNewsConfig({
+          feedUrl: dj.feedUrl || '',
+          position: dj.position || 'bottom-center',
+          refreshInterval: dj.refreshInterval || 600000,
+          mode: dj.mode || 'fade',
+          rotationSpeed: dj.rotationSpeed || 8000,
+          marqueeSpeed: dj.marqueeSpeed || 6,
+          showImages: !!dj.showImages,
+          maxItems: dj.maxItems || 10
+        });
       }
     } catch {}
 
-    if (!parsedWeather) {
+    if (!parsedWidget) {
       setIsWeatherMode(false);
+      setIsNewsMode(false);
     }
 
     setForm({
@@ -331,7 +369,7 @@ const TextOverlays = () => {
     return `Playlist #${overlay.target_id}`;
   };
 
-  const hasContent = form.text || form.image_path || form.icon_name || form.template_id || isWeatherMode;
+  const hasContent = form.text || form.image_path || form.icon_name || form.template_id || isWeatherMode || isNewsMode;
 
   // Drag mapping logic
   const handlePointerDown = (e) => {
@@ -445,7 +483,7 @@ const TextOverlays = () => {
           </p>
         </div>
         <button
-          onClick={() => { setShowForm(true); setEditingId(null); setForm({ ...DEFAULT_FORM }); setIsWeatherMode(false); setBgOpacity(50); }}
+          onClick={() => { setShowForm(true); setEditingId(null); setForm({ ...DEFAULT_FORM }); setIsWeatherMode(false); setIsNewsMode(false); setBgOpacity(50); }}
           className="flex items-center justify-center gap-2 bg-green-600/20 text-green-400 border border-green-500/50 hover:bg-green-500 hover:text-[#050505] px-4 py-3 sm:py-2.5 transition-all text-xs font-bold tracking-widest uppercase"
         >
           <Plus size={16} /> NEW_OVERLAY
@@ -549,12 +587,13 @@ const TextOverlays = () => {
               </div>
 
               {/* ── WEATHER WIDGET TOGGLE ────────────────────────────── */}
-              <div className="border border-neutral-800 p-3">
+              <div className="border border-neutral-800 p-3 flex flex-col gap-2">
                 <button
                   onClick={() => {
                     const next = !isWeatherMode;
                     setIsWeatherMode(next);
                     if (next) {
+                      setIsNewsMode(false);
                       setForm(prev => ({ ...prev, text: '', template_id: null, icon_name: '', image_path: '' }));
                     }
                   }}
@@ -568,8 +607,27 @@ const TextOverlays = () => {
                   {isWeatherMode ? '☀️ WIDGET CLIMA ATIVO' : 'ADICIONAR WIDGET DE CLIMA'}
                 </button>
 
+                <button
+                  onClick={() => {
+                    const next = !isNewsMode;
+                    setIsNewsMode(next);
+                    if (next) {
+                      setIsWeatherMode(false);
+                      setForm(prev => ({ ...prev, text: '', template_id: null, icon_name: '', image_path: '' }));
+                    }
+                  }}
+                  className={`w-full flex items-center justify-center gap-2 py-2.5 text-xs font-mono border transition-all duration-200 ${
+                    isNewsMode
+                      ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
+                      : 'bg-neutral-900 border-neutral-700 text-neutral-400 hover:border-emerald-500 hover:text-emerald-400'
+                  }`}
+                >
+                  <Type size={16} />
+                  {isNewsMode ? '📰 WIDGET RSS/NOTÍCIAS ATIVO' : 'ADICIONAR WIDGET RSS/NOTÍCIAS'}
+                </button>
+
                 {isWeatherMode && (
-                  <div className="mt-3 space-y-3">
+                  <div className="mt-3 space-y-3 p-3 bg-neutral-900/50 border border-neutral-800 rounded">
                     {/* City input */}
                     <div>
                       <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Cidade</label>
@@ -645,10 +703,102 @@ const TextOverlays = () => {
                     </div>
                   </div>
                 )}
+
+                {isNewsMode && (
+                  <div className="mt-3 space-y-3 p-3 bg-neutral-900/50 border border-neutral-800 rounded">
+                    <div>
+                      <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">URL do Feed (RSS ou JSON)</label>
+                      <input
+                        type="text"
+                        value={newsConfig.feedUrl}
+                        onChange={e => setNewsConfig(prev => ({ ...prev, feedUrl: e.target.value }))}
+                        placeholder="Ex: https://g1.globo.com/rss/g1/"
+                        className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none placeholder:text-neutral-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Posição e Estilo</label>
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <select
+                          value={newsConfig.position}
+                          onChange={e => setNewsConfig(prev => ({ ...prev, position: e.target.value }))}
+                          className="bg-neutral-900 border border-neutral-700 text-neutral-200 px-2 py-1.5 text-xs font-mono focus:border-emerald-500 focus:outline-none"
+                        >
+                          <option value="bottom-bar">Barra Longa (Global)</option>
+                          <option value="bottom-center">Balão Inferior-Centro</option>
+                          <option value="top-center">Balão Topo-Centro</option>
+                        </select>
+                        <select
+                          value={newsConfig.mode}
+                          onChange={e => setNewsConfig(prev => ({ ...prev, mode: e.target.value }))}
+                          className="bg-neutral-900 border border-neutral-700 text-neutral-200 px-2 py-1.5 text-xs font-mono focus:border-emerald-500 focus:outline-none"
+                        >
+                          <option value="fade">Carrossel (Fade In)</option>
+                          <option value="marquee">Letreiro (Marquee)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                       <div>
+                        <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">
+                          Rotacionar (Fade): {Math.round(newsConfig.rotationSpeed / 1000)}s
+                        </label>
+                        <input
+                          type="range" min="3000" max="15000" step="1000"
+                          value={newsConfig.rotationSpeed}
+                          onChange={e => setNewsConfig(prev => ({ ...prev, rotationSpeed: parseInt(e.target.value) }))}
+                          className="w-full accent-emerald-500 h-1 disabled:opacity-30"
+                          disabled={newsConfig.mode !== 'fade'}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">
+                          Velocidade Marquee: {newsConfig.marqueeSpeed}x
+                        </label>
+                        <input
+                          type="range" min="2" max="12" step="1"
+                          value={newsConfig.marqueeSpeed}
+                          onChange={e => setNewsConfig(prev => ({ ...prev, marqueeSpeed: parseInt(e.target.value) }))}
+                          className="w-full accent-emerald-500 h-1 disabled:opacity-30"
+                          disabled={newsConfig.mode !== 'marquee'}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                       <div>
+                         <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">
+                          Atualizar RSS: {Math.round(newsConfig.refreshInterval / 60000)}m
+                        </label>
+                        <input
+                          type="range" min="60000" max="3600000" step="60000"
+                          value={newsConfig.refreshInterval}
+                          onChange={e => setNewsConfig(prev => ({ ...prev, refreshInterval: parseInt(e.target.value) }))}
+                          className="w-full accent-emerald-500 h-1"
+                        />
+                      </div>
+                      <div>
+                         <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-2 block">Imagens</label>
+                         <button
+                           onClick={() => setNewsConfig(prev => ({ ...prev, showImages: !prev.showImages }))}
+                           className={`w-full py-1.5 text-[10px] font-mono border transition-all duration-150 ${
+                             newsConfig.showImages
+                               ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
+                               : 'bg-neutral-900 border-neutral-700 text-neutral-500 hover:border-neutral-500'
+                           }`}
+                         >
+                           {newsConfig.showImages ? '🖼️ Exibir Imagens/Cards' : 'Esconder Imagens'}
+                         </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Text Form (hidden in weather mode) */}
-              {!isWeatherMode && (
+              {/* Text Form (hidden in widget mode) */}
+              {(!isWeatherMode && !isNewsMode) && (
               <div>
                 <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Mensagem</label>
                 <textarea

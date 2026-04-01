@@ -7,6 +7,13 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+const Parser = require('rss-parser');
+const rssParser = new Parser({
+  customFields: {
+    item: ['media:content', 'media:group', 'enclosure']
+  }
+});
+
 const { db, initDb } = require('./database');
 
 const app = express();
@@ -970,6 +977,71 @@ app.get('/api/weather', async (req, res) => {
   } catch (err) {
     console.error('[Weather API Error]:', err.message);
     res.status(500).json({ error: 'Failed to fetch weather data' });
+  }
+});
+
+const newsCache = new Map();
+const NEWS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+app.get('/api/news', async (req, res) => {
+  try {
+    const url = req.query.url;
+    if (!url) return res.status(400).json({ error: 'URL is required' });
+
+    const cacheKey = `news_${url}`;
+    const cached = newsCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < NEWS_CACHE_TTL) {
+      return res.json(cached.data);
+    }
+
+    try {
+      const feed = await rssParser.parseURL(url);
+      const items = feed.items.map(i => {
+        let image = '';
+        if (i.enclosure && i.enclosure.url) image = i.enclosure.url;
+        else if (i['media:content'] && i['media:content'].$) image = i['media:content'].$.url;
+        else if (i.content && i.content.match(/<img[^>]+src="([^">]+)"/)) image = i.content.match(/<img[^>]+src="([^">]+)"/)[1];
+
+        return {
+          id: i.guid || i.id || Math.random().toString(),
+          title: i.title,
+          description: i.contentSnippet || i.content || i.description || '',
+          link: i.link,
+          date: i.isoDate || i.pubDate,
+          image,
+        };
+      }).slice(0, 15);
+
+      const result = { type: 'rss', title: feed.title, items };
+      newsCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return res.json(result);
+    } catch (rssError) {
+      const jsonRes = await fetch(url);
+      if (!jsonRes.ok) throw new Error('Fetch failed');
+      const jsonData = await jsonRes.json();
+      
+      let items = [];
+      if (Array.isArray(jsonData)) items = jsonData;
+      else if (jsonData.items) items = jsonData.items;
+      else if (jsonData.data) items = jsonData.data;
+      else if (jsonData.articles) items = jsonData.articles;
+      else items = [jsonData];
+
+      const mappedItems = items.slice(0, 15).map(i => ({
+        id: i.id || Math.random().toString(),
+        title: i.title || i.name || i.headline || '',
+        description: i.description || i.summary || '',
+        link: i.url || i.link || '',
+        image: i.image || i.thumbnail || i.imageUrl || i.picture || i.photo || '',
+      }));
+
+      const result = { type: 'json', title: 'Feed JSON', items: mappedItems };
+      newsCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return res.json(result);
+    }
+  } catch (err) {
+    console.error('[News API Error]:', err.message);
+    res.status(500).json({ error: 'Failed to fetch news feed' });
   }
 });
 

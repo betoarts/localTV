@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import TemplateRenderer from './TemplateRenderer';
 import WeatherWidget from './WeatherWidget';
+import NewsWidget from './NewsWidget';
 import LottieRaw from 'lottie-react';
 const Lottie = LottieRaw.default ? LottieRaw.default : LottieRaw;
 
@@ -72,13 +73,13 @@ const OverlayItem = ({ overlay }) => {
       const d = typeof overlay.data_json === 'string'
         ? JSON.parse(overlay.data_json || '{}')
         : (overlay.data_json || {});
-      return d.widget === 'weather' ? d : null;
+      return (d.widget === 'weather' || d.widget === 'news') ? d : null;
     } catch {
       return null;
     }
   })();
 
-  if (widgetData) {
+  if (widgetData && widgetData.widget === 'weather') {
     return (
       <div
         style={{
@@ -98,6 +99,33 @@ const OverlayItem = ({ overlay }) => {
           showHumidity={widgetData.showHumidity}
           showFeelsLike={widgetData.showFeelsLike}
           showWind={widgetData.showWind}
+        />
+      </div>
+    );
+  }
+
+  // ── NEWS WIDGET OVERLAY ──────────────────────────────────────────────────
+  if (widgetData && widgetData.widget === 'news') {
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: 56,
+          pointerEvents: 'none',
+        }}
+      >
+        <NewsWidget
+          feedUrl={widgetData.feedUrl}
+          position={widgetData.position || overlay.position || 'bottom-center'}
+          refreshInterval={widgetData.refreshInterval}
+          mode={widgetData.mode}
+          rotationSpeed={widgetData.rotationSpeed}
+          marqueeSpeed={widgetData.marqueeSpeed}
+          showImages={widgetData.showImages}
+          maxItems={widgetData.maxItems}
         />
       </div>
     );
