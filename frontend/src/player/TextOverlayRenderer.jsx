@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import TemplateRenderer from './TemplateRenderer';
 import WeatherWidget from './WeatherWidget';
+import LottieRaw from 'lottie-react';
+const Lottie = LottieRaw.default ? LottieRaw.default : LottieRaw;
 
 const MEDIA_BASE = API_BASE;
 
@@ -38,6 +40,18 @@ const getAnimationStyle = (animation) => {
 const OverlayItem = ({ overlay }) => {
   const [visible, setVisible] = useState(true);
   const timerRef = useRef(null);
+
+  const isLottie = !!(overlay.image_path && (overlay.image_path.toLowerCase().endsWith('.json') || overlay.image_path.toLowerCase().endsWith('.lottie')));
+  const [lottieData, setLottieData] = useState(null);
+
+  useEffect(() => {
+    if (isLottie && overlay.image_path) {
+      fetch(MEDIA_BASE + overlay.image_path)
+        .then(res => res.json())
+        .then(data => setLottieData(data))
+        .catch(err => console.error("Failed to load Lottie animation", err));
+    }
+  }, [isLottie, overlay.image_path]);
 
   useEffect(() => {
     if (overlay.duration_seconds > 0) {
@@ -178,12 +192,17 @@ const OverlayItem = ({ overlay }) => {
         {IconComponent && (
           <IconComponent size={overlay.icon_size || 40} color={overlay.icon_color || '#FFFFFF'} style={{ flexShrink: 0 }} />
         )}
-        {hasImage && (
+        {hasImage && !isLottie && (
           <img
             src={MEDIA_BASE + overlay.image_path}
             alt=""
             style={imageStyle}
           />
+        )}
+        {hasImage && isLottie && lottieData && (
+          <div style={imageStyle}>
+            <Lottie animationData={lottieData} loop={true} style={{ width: '100%', height: '100%' }} />
+          </div>
         )}
         {hasText && <span>{overlay.text}</span>}
       </div>

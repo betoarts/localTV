@@ -2,6 +2,21 @@ import { useState, useEffect, useRef } from 'react';
 import { getMedia, uploadMedia, deleteMedia, API_BASE } from '../api';
 
 import { UploadCloud, Trash2, Image as ImageIcon, Video as VideoIcon, Film, Activity } from 'lucide-react';
+import LottieRaw from 'lottie-react';
+const Lottie = LottieRaw.default ? LottieRaw.default : LottieRaw;
+
+const LottiePreview = ({ path, className }) => {
+  const [lottieData, setLottieData] = useState(null);
+  useEffect(() => {
+    fetch(API_BASE + path).then(res=>res.json()).then(setLottieData).catch(()=>{});
+  }, [path]);
+  if (!lottieData) return <div className={className} />;
+  return (
+    <div className={className} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Lottie animationData={lottieData} loop={true} style={{ width: '100%', height: '100%' }} />
+    </div>
+  );
+};
 
 const MediaLibrary = () => {
   const [media, setMedia] = useState([]);
@@ -65,7 +80,7 @@ const MediaLibrary = () => {
             className="hidden"
             ref={fileInputRef}
             onChange={handleFileChange}
-            accept="image/*,video/mp4,video/webm"
+            accept="image/*,video/mp4,video/webm,.json,.lottie"
           />
           <button
             onClick={() => fileInputRef.current.click()}
@@ -101,6 +116,8 @@ const MediaLibrary = () => {
                       <VideoIcon size={12} className="text-fuchsia-500 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" />
                     </div>
                   </>
+                ) : item.path.toLowerCase().endsWith('.json') || item.path.toLowerCase().endsWith('.lottie') ? (
+                  <LottiePreview path={item.path} className="w-full h-full opacity-70 group-hover:opacity-100 transition-opacity relative z-0 mix-blend-screen grayscale group-hover:grayscale-0 sequence-hover pointer-events-none p-4" />
                 ) : (
                   <div 
                     className="w-full h-full bg-cover bg-center opacity-70 group-hover:opacity-100 transition-opacity relative z-0 mix-blend-screen grayscale group-hover:grayscale-0 sequence-hover" 

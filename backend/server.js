@@ -66,7 +66,7 @@ ensureDir(LEGACY_UPLOAD_DIR);
 const getMediaTypeDir = (filename) => {
   const ext = path.extname(filename).toLowerCase();
   if (ext.match(/\.(mp4|webm|mkv|avi|mov)$/i)) return 'videos';
-  if (ext.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) return 'images';
+  if (ext.match(/\.(jpg|jpeg|png|gif|webp|svg|json|lottie)$/i)) return 'images';
   if (ext.match(/\.(html|htm)$/i)) return 'html';
   return 'files';
 };

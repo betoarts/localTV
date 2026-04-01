@@ -13,6 +13,23 @@ import {
 
 const MEDIA_BASE = API_BASE;
 
+import LottieRaw from 'lottie-react';
+const Lottie = LottieRaw.default ? LottieRaw.default : LottieRaw;
+
+const LottiePreview = ({ path, className, style }) => {
+  const [lottieData, setLottieData] = useState(null);
+  useEffect(() => {
+    if(!path) return;
+    fetch(MEDIA_BASE + path).then(res=>res.json()).then(setLottieData).catch(()=>{});
+  }, [path]);
+  if (!lottieData) return <div className={className} style={style} />;
+  return (
+    <div className={className} style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Lottie animationData={lottieData} loop={true} style={{ width: '100%', height: '100%' }} />
+    </div>
+  );
+};
+
 const LUCIDE_ICONS_MAP = {
   AlertCircle, CheckCircle, Info, Star, Heart, Flame, Zap, Bell, Shield, ThumbsUp
 };
@@ -743,22 +760,26 @@ const TextOverlays = () => {
 
               {/* Image Upload / Library Picker */}
               <div>
-                <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-2 block">Logo / Imagem (PNG, SVG)</label>
+                <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-2 block">Logo / Imagem / Animação (PNG, GIF, SVG, JSON/Lottie)</label>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".png,.svg,image/png,image/svg+xml"
+                  accept=".png,.gif,.svg,.json,.lottie,image/png,image/gif,image/svg+xml,application/json"
                   onChange={handleImageUpload}
                   className="hidden"
                 />
 
                 {form.image_path ? (
                   <div className="flex items-center gap-3 bg-neutral-900 border border-green-800 p-3 mb-2">
-                    <img
-                      src={MEDIA_BASE + form.image_path}
-                      alt="overlay logo"
-                      className="h-12 w-12 object-contain bg-neutral-800 border border-neutral-600 p-1"
-                    />
+                    {form.image_path.toLowerCase().endsWith('.json') || form.image_path.toLowerCase().endsWith('.lottie') ? (
+                      <LottiePreview path={form.image_path} className="h-12 w-12 object-contain bg-neutral-800 border border-neutral-600 p-1" />
+                    ) : (
+                      <img
+                        src={MEDIA_BASE + form.image_path}
+                        alt="overlay logo"
+                        className="h-12 w-12 object-contain bg-neutral-800 border border-neutral-600 p-1"
+                      />
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-mono text-neutral-300 truncate">{form.image_path.split('/').pop()}</p>
                       <p className="text-[10px] font-mono text-green-500">✓ Imagem selecionada</p>
@@ -808,7 +829,11 @@ const TextOverlays = () => {
                             onClick={() => handleSelectFromLibrary(item)}
                             className="aspect-square bg-neutral-800 border border-neutral-700 hover:border-green-500 cursor-pointer overflow-hidden p-1 group"
                           >
-                            <img src={MEDIA_BASE + item.path} alt="" className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
+                            {item.path.toLowerCase().endsWith('.json') || item.path.toLowerCase().endsWith('.lottie') ? (
+                              <LottiePreview path={item.path} className="w-full h-full object-contain group-hover:scale-110 transition-transform pointer-events-none" />
+                            ) : (
+                              <img src={MEDIA_BASE + item.path} alt="" className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1050,16 +1075,23 @@ const TextOverlays = () => {
                     >
                       {IconComponent && <IconComponent size={form.icon_size} color={form.icon_color} />}
                       {form.image_path && (
-                        <img
-                          src={MEDIA_BASE + form.image_path}
-                          alt="logo"
-                          style={{
-                            height: `${form.image_size}px`,
-                            width: 'auto',
-                            objectFit: 'contain',
-                            pointerEvents: 'none'
-                          }}
-                        />
+                        form.image_path.toLowerCase().endsWith('.json') || form.image_path.toLowerCase().endsWith('.lottie') ? (
+                          <LottiePreview 
+                            path={form.image_path}
+                            style={{ height: `${form.image_size}px`, width: 'auto', pointerEvents: 'none' }}
+                          />
+                        ) : (
+                          <img
+                            src={MEDIA_BASE + form.image_path}
+                            alt="logo"
+                            style={{
+                              height: `${form.image_size}px`,
+                              width: 'auto',
+                              objectFit: 'contain',
+                              pointerEvents: 'none'
+                            }}
+                          />
+                        )
                       )}
                       <span style={{ pointerEvents: 'none' }}>{form.text}</span>
                     </div>
@@ -1070,8 +1102,8 @@ const TextOverlays = () => {
               {/* Image control underneath preview */}
               <div className="flex gap-4 pt-2">
                 <div>
-                  <label className="text-[10px] font-mono text-neutral-500 uppercase block mb-1">Adicionar Logo (Upload)</label>
-                  <input ref={fileInputRef} type="file" accept=".png,.svg,image/png,image/svg+xml" onChange={handleImageUpload} className="hidden" />
+                  <label className="text-[10px] font-mono text-neutral-500 uppercase block mb-1">Adicionar Logo/Lottie (Upload)</label>
+                  <input ref={fileInputRef} type="file" accept=".png,.gif,.svg,.json,.lottie,image/png,image/gif,image/svg+xml,application/json" onChange={handleImageUpload} className="hidden" />
                   {form.image_path ? (
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] truncate text-green-400">Img Adicionada</span>
@@ -1105,11 +1137,15 @@ const TextOverlays = () => {
                             className="aspect-square bg-neutral-800 border border-neutral-700 hover:border-cyan-500 p-1 transition-all duration-150 group overflow-hidden"
                             title={item.name}
                           >
-                            <img
-                              src={MEDIA_BASE + item.path}
-                              alt={item.name}
-                              className="w-full h-full object-contain group-hover:scale-110 transition-transform"
-                            />
+                            {item.path.toLowerCase().endsWith('.json') || item.path.toLowerCase().endsWith('.lottie') ? (
+                              <LottiePreview path={item.path} className="w-full h-full object-contain group-hover:scale-110 transition-transform pointer-events-none" />
+                            ) : (
+                              <img
+                                src={MEDIA_BASE + item.path}
+                                alt={item.name}
+                                className="w-full h-full object-contain group-hover:scale-110 transition-transform"
+                              />
+                            )}
                           </button>
                         ))}
                       </div>
