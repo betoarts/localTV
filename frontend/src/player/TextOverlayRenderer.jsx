@@ -247,8 +247,6 @@ const TextOverlayRenderer = ({ overlays = [], mediaTime = 0 }) => {
     return () => clearInterval(timer);
   }, []);
 
-  if (overlays.length === 0) return null;
-
   const nowStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
 
   const isCurrentlyActive = (overlay) => {
