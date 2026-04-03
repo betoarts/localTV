@@ -51,6 +51,7 @@ export const getPlaylistItemsOverlays = (playlistId) => api.get(`${API_URL}/over
 export const createOverlay = (data) => api.post(`${API_URL}/overlays`, data).then(res => res.data);
 export const updateOverlay = (id, data) => api.put(`${API_URL}/overlays/${id}`, data).then(res => res.data);
 export const deleteOverlay = (id) => api.delete(`${API_URL}/overlays/${id}`).then(res => res.data);
+export const reorderOverlays = (items) => api.put(`${API_URL}/overlays/reorder`, { items }).then(res => res.data);
 export const uploadOverlayImage = (file) => {
   const formData = new FormData();
   formData.append('image', file);

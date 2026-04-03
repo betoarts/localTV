@@ -2,13 +2,13 @@ import { useEffect, useState, useRef } from 'react';
 import TemplateRenderer from '../player/TemplateRenderer';
 import {
   getOverlays, createOverlay, updateOverlay, deleteOverlay,
-  getDevices, getPlaylists, getPlaylistItems, getMedia, uploadOverlayImage, API_BASE, getTemplates
+  getDevices, getPlaylists, getPlaylistItems, getMedia, uploadOverlayImage, API_BASE, getTemplates, reorderOverlays
 } from '../api';
 import {
   Type, Plus, Trash2, Edit3, Save, X, Eye, EyeOff,
   Monitor, ListVideo, ChevronDown, ImagePlus, Image, Upload, FolderOpen, CloudSun,
   // New icons for options
-  AlertCircle, CheckCircle, Info, Star, Heart, Flame, Zap, Bell, Shield, ThumbsUp
+  AlertCircle, CheckCircle, Info, Star, Heart, Flame, Zap, Bell, Shield, ThumbsUp, GripVertical
 } from 'lucide-react';
 
 const MEDIA_BASE = API_BASE;
@@ -99,10 +99,14 @@ const DEFAULT_FORM = {
   border: 0,
   duration_seconds: 0,
   is_active: 1,
-  image_path: '',
+  image_path: null,
   image_size: 150,
   template_id: null,
-  data_json: '{}',
+  data_json: null,
+  start_time: '',
+  end_time: '',
+  start_offset: 0,
+  end_offset: 0
 };
 
 const TextOverlays = () => {
@@ -119,6 +123,7 @@ const TextOverlays = () => {
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [draggedItem, setDraggedItem] = useState(null);
   const fileInputRef = useRef(null);
 
   // Weather widget state
@@ -213,7 +218,37 @@ const TextOverlays = () => {
   };
 
   const handleRemoveImage = () => {
-    setForm(prev => ({ ...prev, image_path: '' }));
+    setForm(prev => ({ ...prev, image_path: null }));
+  };
+
+  // --- DRAG & DROP LOGIC ---
+  const handleDragStart = (e, index) => {
+    setDraggedItem(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedItem === null || draggedItem === index) return;
+
+    const newOverlays = [...overlays];
+    const itemToMove = newOverlays[draggedItem];
+    newOverlays.splice(draggedItem, 1);
+    newOverlays.splice(index, 0, itemToMove);
+    
+    setDraggedItem(index);
+    setOverlays(newOverlays);
+  };
+
+  const handleDragEnd = async () => {
+    setDraggedItem(null);
+    try {
+      const ids = overlays.map(o => o.id);
+      await reorderOverlays(ids);
+    } catch (error) {
+      console.error("Failed to save overlay order:", error);
+      fetchAll(); // Revert on failure
+    }
   };
 
   const handleSubmit = async () => {
@@ -341,7 +376,11 @@ const TextOverlays = () => {
       image_path: overlay.image_path || '',
       image_size: overlay.image_size || 150,
       template_id: overlay.template_id || null,
-      data_json: overlay.data_json || '{}',
+      data_json: overlay.data_json || null,
+      start_time: overlay.start_time || '',
+      end_time: overlay.end_time || '',
+      start_offset: overlay.start_offset || 0,
+      end_offset: overlay.end_offset || 0
     });
     setBgOpacity(opacity);
     setEditingId(overlay.id);
@@ -811,6 +850,7 @@ const TextOverlays = () => {
               )}
 
               {/* Template Selection */}
+              {!isWeatherMode && !isNewsMode && (
               <div>
                 <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-2 block">Overlay de Template (Dynamic Layout)</label>
                 {form.template_id ? (
@@ -876,8 +916,10 @@ const TextOverlays = () => {
                   </div>
                 )}
               </div>
+              )}
 
               {/* Font Family & Size */}
+              {!isWeatherMode && !isNewsMode && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Google Font</label>
@@ -907,8 +949,10 @@ const TextOverlays = () => {
                   />
                 </div>
               </div>
+              )}
 
               {/* Image Upload / Library Picker */}
+              {!isWeatherMode && !isNewsMode && (
               <div>
                 <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-2 block">Logo / Imagem / Animação (PNG, GIF, SVG, JSON/Lottie)</label>
                 <input
@@ -991,8 +1035,10 @@ const TextOverlays = () => {
                   </div>
                 )}
               </div>
+              )}
 
               {/* Icon selection */}
+              {!isWeatherMode && !isNewsMode && (
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Ícone Central</label>
@@ -1033,9 +1079,10 @@ const TextOverlays = () => {
                   />
                 </div>
               </div>
+              )}
 
               {/* Coordinates Presets — hidden for templates since they always fill the screen */}
-              {!form.template_id && (
+              {!form.template_id && !isWeatherMode && !isNewsMode && (
                 <div className="pt-2">
                   <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-2 block">Posições Rápidas (Presets em PX)</label>
                   <div className="grid grid-cols-3 gap-2">
@@ -1074,7 +1121,7 @@ const TextOverlays = () => {
               )}
 
               {/* Style Colors */}
-              {hasContent && (
+              {hasContent && !isWeatherMode && !isNewsMode && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -1125,6 +1172,7 @@ const TextOverlays = () => {
               )}
 
               {/* Animation */}
+              {!isWeatherMode && !isNewsMode && (
               <div>
                 <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Animação</label>
                 <div className="relative">
@@ -1140,18 +1188,43 @@ const TextOverlays = () => {
                   <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
                 </div>
               </div>
+              )}
 
               {/* Advanced / Duration / Upload */}
               <div className="pt-2 border-t border-neutral-800">
                 <div className="grid grid-cols-2 gap-3 mb-4">
+                  {!isWeatherMode && !isNewsMode ? (
                   <div>
                     <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Duração (0 = infinito)</label>
                     <input type="number" min="0" value={form.duration_seconds} onChange={e => setForm(prev => ({ ...prev, duration_seconds: parseInt(e.target.value) || 0 }))} className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-3 py-2 text-sm font-mono focus:border-green-500 focus:outline-none" />
                   </div>
+                  ) : <div />}
                   <div className="flex items-end">
                     <button onClick={() => setForm(prev => ({ ...prev, is_active: prev.is_active ? 0 : 1 }))} className={`w-full px-3 py-2 text-xs font-mono border transition-all duration-150 flex items-center justify-center gap-2 ${form.is_active ? 'bg-green-600/20 border-green-500 text-green-400' : 'bg-red-900/20 border-red-800 text-red-400'}`}>
                       {form.is_active ? <Eye size={14} /> : <EyeOff size={14} />} {form.is_active ? 'ATIVO' : 'INATIVO'}
                     </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div>
+                    <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Hora Inicial (Opcional)</label>
+                    <input type="time" value={form.start_time} onChange={e => setForm(prev => ({ ...prev, start_time: e.target.value }))} className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-3 py-2 text-sm font-mono focus:border-green-500 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Hora Final (Opcional)</label>
+                    <input type="time" value={form.end_time} onChange={e => setForm(prev => ({ ...prev, end_time: e.target.value }))} className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-3 py-2 text-sm font-mono focus:border-green-500 focus:outline-none" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div>
+                    <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Offset Inicial (s)</label>
+                    <input type="number" min="0" value={form.start_offset} onChange={e => setForm(prev => ({ ...prev, start_offset: parseInt(e.target.value) || 0 }))} className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-3 py-2 text-sm font-mono focus:border-green-500 focus:outline-none" placeholder="0 = início" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider mb-1 block">Offset Final (s)</label>
+                    <input type="number" min="0" value={form.end_offset} onChange={e => setForm(prev => ({ ...prev, end_offset: parseInt(e.target.value) || 0 }))} className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 px-3 py-2 text-sm font-mono focus:border-green-500 focus:outline-none" placeholder="0 = até o fim" />
                   </div>
                 </div>
 
@@ -1175,7 +1248,7 @@ const TextOverlays = () => {
                 style={{ aspectRatio: '16/9' }}
               >
                 {/* Simulated video background */}
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neutral-800 to-black flex items-center justify-center select-none pointer-events-none">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-neutral-800 to-black flex items-center justify-center select-none pointer-events-none">
                   <Monitor size={64} className="text-neutral-900 opacity-30" />
                 </div>
 
@@ -1192,6 +1265,12 @@ const TextOverlays = () => {
                         catch { return {}; }
                       })()}
                     />
+                  </div>
+                ) : (isWeatherMode || isNewsMode) ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-none z-50">
+                    <p className="text-sm font-mono text-white/50 text-center uppercase whitespace-pre-line">
+                      {isWeatherMode ? '☀️ Widget de Clima configurado\n(preview no player)' : '📰 Widget de Notícias configurado\n(preview no player)'}
+                    </p>
                   </div>
                 ) : hasContent && (
                   <div 
@@ -1250,58 +1329,62 @@ const TextOverlays = () => {
               </div>
 
               {/* Image control underneath preview */}
-              <div className="flex gap-4 pt-2">
-                <div>
-                  <label className="text-[10px] font-mono text-neutral-500 uppercase block mb-1">Adicionar Logo/Lottie (Upload)</label>
-                  <input ref={fileInputRef} type="file" accept=".png,.gif,.svg,.json,.lottie,image/png,image/gif,image/svg+xml,application/json" onChange={handleImageUpload} className="hidden" />
-                  {form.image_path ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] truncate text-green-400">Img Adicionada</span>
-                      <button onClick={handleRemoveImage} className="text-red-400"><Trash2 size={12} /></button>
-                      <input type="number" min="20" max="600" value={form.image_size} onChange={e => setForm(f => ({...f, image_size: parseInt(e.target.value)}))} className="w-16 bg-neutral-900 border border-neutral-700 px-1 py-0.5 text-xs focus:border-green-500" title="Tamanho IMG" />
-                      <span className="text-[10px] text-neutral-500">px</span>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="flex items-center justify-center gap-1 bg-neutral-800 hover:bg-neutral-700 px-3 py-1.5 text-[10px] text-neutral-300 transition-colors uppercase border border-neutral-700">
-                        <Upload size={12} /> {uploading ? 'Up...' : 'Upload'}
-                      </button>
-                      <button onClick={() => setShowMediaPicker(!showMediaPicker)} className="flex items-center justify-center gap-1 bg-neutral-800 hover:bg-neutral-700 px-3 py-1.5 text-[10px] text-neutral-300 transition-colors uppercase border border-neutral-700">
-                        <FolderOpen size={12} /> BIBLIOTECA
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {showMediaPicker && !form.image_path && (
-                  <div className="mt-2 bg-neutral-900 border border-neutral-700 p-3 max-h-48 overflow-y-auto">
-                    {mediaLibrary.length === 0 ? (
-                      <p className="text-[10px] font-mono text-neutral-600 text-center py-4">Nenhuma imagem na biblioteca</p>
+              {!isWeatherMode && !isNewsMode && (
+              <>
+                <div className="flex gap-4 pt-2">
+                  <div>
+                    <label className="text-[10px] font-mono text-neutral-500 uppercase block mb-1">Adicionar Logo/Lottie (Upload)</label>
+                    <input ref={fileInputRef} type="file" accept=".png,.gif,.svg,.json,.lottie,image/png,image/gif,image/svg+xml,application/json" onChange={handleImageUpload} className="hidden" />
+                    {form.image_path ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] truncate text-green-400">Img Adicionada</span>
+                        <button onClick={handleRemoveImage} className="text-red-400"><Trash2 size={12} /></button>
+                        <input type="number" min="20" max="600" value={form.image_size} onChange={e => setForm(f => ({...f, image_size: parseInt(e.target.value)}))} className="w-16 bg-neutral-900 border border-neutral-700 px-1 py-0.5 text-xs focus:border-green-500" title="Tamanho IMG" />
+                        <span className="text-[10px] text-neutral-500">px</span>
+                      </div>
                     ) : (
-                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                        {mediaLibrary.map(item => (
-                          <button
-                            key={item.id}
-                            onClick={() => handleSelectFromLibrary(item)}
-                            className="aspect-square bg-neutral-800 border border-neutral-700 hover:border-cyan-500 p-1 transition-all duration-150 group overflow-hidden"
-                            title={item.name}
-                          >
-                            {item.path.toLowerCase().endsWith('.json') || item.path.toLowerCase().endsWith('.lottie') ? (
-                              <LottiePreview path={item.path} className="w-full h-full object-contain group-hover:scale-110 transition-transform pointer-events-none" />
-                            ) : (
-                              <img
-                                src={MEDIA_BASE + item.path}
-                                alt={item.name}
-                                className="w-full h-full object-contain group-hover:scale-110 transition-transform"
-                              />
-                            )}
-                          </button>
-                        ))}
+                      <div className="flex gap-2">
+                        <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="flex items-center justify-center gap-1 bg-neutral-800 hover:bg-neutral-700 px-3 py-1.5 text-[10px] text-neutral-300 transition-colors uppercase border border-neutral-700">
+                          <Upload size={12} /> {uploading ? 'Up...' : 'Upload'}
+                        </button>
+                        <button onClick={() => setShowMediaPicker(!showMediaPicker)} className="flex items-center justify-center gap-1 bg-neutral-800 hover:bg-neutral-700 px-3 py-1.5 text-[10px] text-neutral-300 transition-colors uppercase border border-neutral-700">
+                          <FolderOpen size={12} /> BIBLIOTECA
+                        </button>
                       </div>
                     )}
                   </div>
-                )}
+                </div>
+                
+                {showMediaPicker && !form.image_path && (
+                    <div className="mt-2 bg-neutral-900 border border-neutral-700 p-3 max-h-48 overflow-y-auto">
+                      {mediaLibrary.length === 0 ? (
+                        <p className="text-[10px] font-mono text-neutral-600 text-center py-4">Nenhuma imagem na biblioteca</p>
+                      ) : (
+                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                          {mediaLibrary.map(item => (
+                            <button
+                              key={item.id}
+                              onClick={() => handleSelectFromLibrary(item)}
+                              className="aspect-square bg-neutral-800 border border-neutral-700 hover:border-cyan-500 p-1 transition-all duration-150 group overflow-hidden"
+                              title={item.name}
+                            >
+                              {item.path.toLowerCase().endsWith('.json') || item.path.toLowerCase().endsWith('.lottie') ? (
+                                <LottiePreview path={item.path} className="w-full h-full object-contain group-hover:scale-110 transition-transform pointer-events-none" />
+                              ) : (
+                                <img
+                                  src={MEDIA_BASE + item.path}
+                                  alt={item.name}
+                                  className="w-full h-full object-contain group-hover:scale-110 transition-transform"
+                                />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+              </>
+              )}
             </div>
           </div>
         </div>
@@ -1321,12 +1404,19 @@ const TextOverlays = () => {
           </div>
         )}
 
-        {overlays.map(overlay => (
+        {overlays.map((overlay, index) => (
           <div
             key={overlay.id}
-            className={`panel-border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group transition-all duration-200 hover:border-neutral-700 ${!overlay.is_active ? 'opacity-50' : ''}`}
+            draggable
+            onDragStart={(e) => handleDragStart(e, index)}
+            onDragOver={(e) => handleDragOver(e, index)}
+            onDragEnd={handleDragEnd}
+            className={`panel-border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group transition-all duration-200 hover:border-neutral-700 ${!overlay.is_active ? 'opacity-50' : ''} ${draggedItem === index ? 'opacity-30 bg-neutral-800' : ''}`}
           >
             <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+              <div className="hidden sm:flex items-center text-neutral-600 group-hover:text-neutral-400 cursor-grab active:cursor-grabbing">
+                <GripVertical size={16} />
+              </div>
               {overlay.image_path && (
                 <img src={MEDIA_BASE + overlay.image_path} alt="" className="h-10 w-10 sm:h-8 sm:w-8 object-contain bg-neutral-800 border border-neutral-700 p-0.5 shrink-0" />
               )}
@@ -1348,6 +1438,18 @@ const TextOverlays = () => {
                       <span className="text-neutral-500">{overlay.duration_seconds}S</span>
                     </>
                   )}
+                  {(overlay.start_time || overlay.end_time) && (
+                    <>
+                      <span className="text-neutral-700">|</span>
+                      <span className="text-amber-500 font-bold">{overlay.start_time || '--:--'} » {overlay.end_time || '--:--'}</span>
+                    </>
+                  )}
+                  {(overlay.start_offset > 0 || overlay.end_offset > 0) && (
+                    <>
+                      <span className="text-neutral-700">|</span>
+                      <span className="text-sky-500 font-bold">⏱️ {overlay.start_offset}s » {overlay.end_offset || 'Fim'}s</span>
+                    </>
+                  )}
                 </div>
                 <p className="text-xs sm:text-sm font-mono text-neutral-200 truncate uppercase" style={{ fontFamily: overlay.font_family}}>
                   {(() => {
@@ -1356,6 +1458,8 @@ const TextOverlays = () => {
                       const dj = typeof overlay.data_json === 'string' ? JSON.parse(overlay.data_json || '{}') : (overlay.data_json || {});
                       if (dj.widget === 'weather') {
                         return <span className="text-sky-400">☀️ [ WEATHER_WIDGET: {dj.city || 'Canela,RS'} — {dj.position || 'top-right'} ]</span>;
+                      } else if (dj.widget === 'news') {
+                        return <span className="text-emerald-400">📰 [ NEWS_WIDGET: {dj.feedUrl || 'Nenhum'} — {dj.mode || 'fade'} ]</span>;
                       }
                     } catch {}
                     // Existing logic

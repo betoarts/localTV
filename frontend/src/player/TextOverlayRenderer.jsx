@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo, useMemo } from 'react';
 import { API_BASE } from '../api';
 import {
   AlertCircle, CheckCircle, Info, Star, Heart, Flame, Zap, Bell, Shield, ThumbsUp, Type
@@ -38,7 +38,7 @@ const getAnimationStyle = (animation) => {
   }
 };
 
-const OverlayItem = ({ overlay }) => {
+const OverlayItem = memo(({ overlay, zIndex }) => {
   const [visible, setVisible] = useState(true);
   const timerRef = useRef(null);
 
@@ -87,7 +87,7 @@ const OverlayItem = ({ overlay }) => {
           inset: 0,
           width: '100%',
           height: '100%',
-          zIndex: 55,
+          zIndex: zIndex || 55,
           pointerEvents: 'none',
         }}
       >
@@ -113,7 +113,7 @@ const OverlayItem = ({ overlay }) => {
           inset: 0,
           width: '100%',
           height: '100%',
-          zIndex: 56,
+          zIndex: zIndex || 56,
           pointerEvents: 'none',
         }}
       >
@@ -157,7 +157,7 @@ const OverlayItem = ({ overlay }) => {
           inset: 0,
           width: '100%',
           height: '100%',
-          zIndex: 50,
+          zIndex: zIndex || 50,
           pointerEvents: 'none',
           ...animation,
         }}
@@ -182,7 +182,7 @@ const OverlayItem = ({ overlay }) => {
     left: `${pctX}%`,
     top: `${pctY}%`,
     transform: 'translate(-50%, -50%)',
-    zIndex: 50,
+    zIndex: zIndex || 50,
     pointerEvents: 'none',
     width: 'max-content'
   };
@@ -204,6 +204,7 @@ const OverlayItem = ({ overlay }) => {
     padding: (hasText || hasIcon) ? '16px 32px' : '4px',
     lineHeight: 1.2,
     whiteSpace: 'pre-wrap',
+    willChange: 'transform, opacity',
     ...getAnimationStyle(overlay.animation),
   };
 
@@ -236,18 +237,64 @@ const OverlayItem = ({ overlay }) => {
       </div>
     </div>
   );
-};
+});
 
-const TextOverlayRenderer = ({ overlays = [] }) => {
+const TextOverlayRenderer = ({ overlays = [], mediaTime = 0 }) => {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30000); // Check every 30s
+    return () => clearInterval(timer);
+  }, []);
+
   if (overlays.length === 0) return null;
+
+  const nowStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+  const isCurrentlyActive = (overlay) => {
+    // 1. Time of Day check
+    if (overlay.start_time || overlay.end_time) {
+      const start = overlay.start_time || '00:00';
+      const end = overlay.end_time || '23:59';
+      let timeOk = false;
+      if (start <= end) {
+        timeOk = nowStr >= start && nowStr <= end;
+      } else {
+        timeOk = nowStr >= start || nowStr <= end;
+      }
+      if (!timeOk) return false;
+    }
+
+    // 2. Relative Media Offset check
+    if (overlay.start_offset > 0 || overlay.end_offset > 0) {
+      const start = overlay.start_offset || 0;
+      const end = overlay.end_offset || 0;
+      
+      if (mediaTime < start) return false;
+      if (end > 0 && mediaTime > end) return false;
+    }
+
+    return true;
+  };
+
+  const activeOverlays = useMemo(() => {
+    return overlays.filter(isCurrentlyActive);
+  }, [overlays, mediaTime, nowStr]);
+  if (activeOverlays.length === 0) return null;
+
+  const BASE_Z_INDEX = 50;
 
   return (
     <>
-      {overlays.map(overlay => (
-        <OverlayItem key={overlay.id} overlay={overlay} />
+      {activeOverlays.map((overlay, index) => (
+        <OverlayItem 
+          key={overlay.id} 
+          overlay={overlay} 
+          zIndex={BASE_Z_INDEX + (activeOverlays.length - index)} 
+        />
       ))}
     </>
   );
 };
 
-export default TextOverlayRenderer;
+export default memo(TextOverlayRenderer);

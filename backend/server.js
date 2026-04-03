@@ -767,7 +767,7 @@ app.get('/api/overlays', (req, res) => {
       (o.target_type = 'device' AND d.client_id = ?)
       OR (o.target_type = 'playlist_item' AND pl.client_id = ?)
     )
-    ORDER BY o.created_at DESC
+    ORDER BY o.item_order ASC, o.created_at DESC
   `;
   db.all(query, [clientId, clientId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -789,6 +789,7 @@ app.get('/api/overlays/target/:type/:id', (req, res) => {
       (o.target_type = 'device' AND d.client_id = ?)
       OR (o.target_type = 'playlist_item' AND pl.client_id = ?)
     )
+    ORDER BY o.item_order ASC
   `;
   db.all(query, [req.params.type, req.params.id, clientId, clientId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -828,12 +829,13 @@ app.post('/api/overlays', (req, res) => {
     text, target_type, target_id, position, animation,
     font_size, font_color, bg_color, bg_blur, font_weight,
     text_shadow, border, duration_seconds, is_active, image_path, image_size,
-    font_family, pos_x, pos_y, icon_name, icon_size, icon_color, template_id, data_json
+    font_family, pos_x, pos_y, icon_name, icon_size, icon_color, template_id, data_json,
+    start_time, end_time, start_offset, end_offset
   } = req.body;
 
   const query = `INSERT INTO text_overlays 
-    (text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size, font_family, pos_x, pos_y, icon_name, icon_size, icon_color, template_id, data_json)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    (text, target_type, target_id, position, animation, font_size, font_color, bg_color, bg_blur, font_weight, text_shadow, border, duration_seconds, is_active, image_path, image_size, font_family, pos_x, pos_y, icon_name, icon_size, icon_color, template_id, data_json, start_time, end_time, start_offset, end_offset, item_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT IFNULL(MAX(item_order), 0) + 1 FROM text_overlays WHERE (target_type = ? AND target_id = ?)))`;
 
   const clientId = getClientId(req);
   ensureOverlayTargetClient(target_type || 'device', target_id, clientId, (err) => {
@@ -844,7 +846,9 @@ app.post('/api/overlays', (req, res) => {
         text || '', target_type || 'device', target_id, position || 'bottom-bar', animation || 'none',
         font_size || 24, font_color || '#FFFFFF', bg_color || '#00000080', bg_blur || 0,
         font_weight || 'normal', text_shadow || 0, border || 0, duration_seconds || 0, is_active !== undefined ? is_active : 1,
-        image_path || null, image_size || 100, font_family || 'Roboto', pos_x !== undefined ? pos_x : 50, pos_y !== undefined ? pos_y : 50, icon_name || null, icon_size || 24, icon_color || '#FFFFFF', template_id || null, data_json || null
+        image_path || null, image_size || 100, font_family || 'Roboto', pos_x !== undefined ? pos_x : 50, pos_y !== undefined ? pos_y : 50, icon_name || null, icon_size || 24, icon_color || '#FFFFFF', template_id || null, data_json || null,
+        start_time || null, end_time || null, start_offset || 0, end_offset || 0,
+        target_type || 'device', target_id
       ], function (err2) {
         if (err2) return res.status(500).json({ error: err2.message });
         io.emit('overlays_updated');
@@ -859,14 +863,16 @@ app.put('/api/overlays/:id', (req, res) => {
     text, target_type, target_id, position, animation,
     font_size, font_color, bg_color, bg_blur, font_weight,
     text_shadow, border, duration_seconds, is_active, image_path, image_size,
-    font_family, pos_x, pos_y, icon_name, icon_size, icon_color, template_id, data_json
+    font_family, pos_x, pos_y, icon_name, icon_size, icon_color, template_id, data_json,
+    start_time, end_time, start_offset, end_offset
   } = req.body;
 
   const query = `UPDATE text_overlays SET 
     text = ?, target_type = ?, target_id = ?, position = ?, animation = ?,
     font_size = ?, font_color = ?, bg_color = ?, bg_blur = ?, font_weight = ?,
     text_shadow = ?, border = ?, duration_seconds = ?, is_active = ?,
-    image_path = ?, image_size = ?, font_family = ?, pos_x = ?, pos_y = ?, icon_name = ?, icon_size = ?, icon_color = ?, template_id = ?, data_json = ?
+    image_path = ?, image_size = ?, font_family = ?, pos_x = ?, pos_y = ?, icon_name = ?, icon_size = ?, icon_color = ?, template_id = ?, data_json = ?,
+    start_time = ?, end_time = ?, start_offset = ?, end_offset = ?
     WHERE id = ?`;
 
   const clientId = getClientId(req);
@@ -878,7 +884,8 @@ app.put('/api/overlays/:id', (req, res) => {
         text, target_type, target_id, position, animation,
         font_size, font_color, bg_color, bg_blur, font_weight,
         text_shadow, border, duration_seconds, is_active,
-        image_path || null, image_size || 100, font_family || 'Roboto', pos_x, pos_y, icon_name || null, icon_size || 24, icon_color || '#FFFFFF', template_id || null, data_json || null, req.params.id
+        image_path || null, image_size || 100, font_family || 'Roboto', pos_x, pos_y, icon_name || null, icon_size || 24, icon_color || '#FFFFFF', template_id || null, data_json || null,
+        start_time || null, end_time || null, start_offset || 0, end_offset || 0, req.params.id
       ], (err2) => {
         if (err2) return res.status(500).json({ error: err2.message });
         io.emit('overlays_updated');
@@ -899,6 +906,29 @@ app.delete('/api/overlays/:id', (req, res) => {
         io.emit('overlays_updated');
         res.json({ success: true });
       });
+    });
+  });
+});
+app.put('/api/overlays/reorder', (req, res) => {
+  const { items } = req.body;
+  const clientId = getClientId(req);
+  if (!items || !Array.isArray(items)) return res.status(400).json({ error: 'Invalid items array' });
+  
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+    items.forEach((itemId, index) => {
+      // item_order is 1-based usually in this project, but consistency is key.
+      db.run('UPDATE text_overlays SET item_order = ? WHERE id = ?', [index + 1, itemId], (err) => {
+        if (err) console.error(`Failed to update order for overlay ${itemId}:`, err.message);
+      });
+    });
+    db.run('COMMIT', (err) => {
+      if (err) {
+        db.run('ROLLBACK');
+        return res.status(500).json({ error: err.message });
+      }
+      io.emit('overlays_updated');
+      res.json({ success: true });
     });
   });
 });

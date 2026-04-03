@@ -103,12 +103,13 @@ const NewsWidget = ({
         }
         
         @keyframes news-marquee {
-          0% { transform: translateX(100%); }
+          0% { transform: translateX(0); }
           100% { transform: translateX(-100%); }
         }
         .animate-news-marquee {
           display: inline-block;
           white-space: nowrap;
+          padding-left: 100%;
           animation: news-marquee linear infinite;
         }
         

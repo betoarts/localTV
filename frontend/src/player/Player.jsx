@@ -42,12 +42,16 @@ const Player = () => {
   const [error, setError] = useState(null);
   const [playCount, setPlayCount] = useState(0);
   const [overlays, setOverlays] = useState([]);
+  const [mediaTime, setMediaTime] = useState(0);
 
   const socketRef = useRef(null);
   const itemsRef = useRef([]);
   const timeoutRef = useRef(null);
   const videoRef = useRef(null);
   const heartbeatRef = useRef(null);
+  const lastTimeUpdateRef = useRef(0);
+  const preloadDelayRef = useRef(null);
+  const [shouldPreload, setShouldPreload] = useState(false);
 
   const fetchOverlays = async (d) => {
     try {
@@ -144,6 +148,7 @@ const Player = () => {
     setCurrentIndex(prev => {
       const len = itemsRef.current.length;
       if (len === 0) return 0;
+      setMediaTime(0);
       return (prev + 1) % len;
     });
   };
@@ -167,13 +172,37 @@ const Player = () => {
       const waitTime = (currentItem.duration || currentItem.default_duration || 10) * 1000;
       console.log(`[PLAYER] Scheduled next item in ${waitTime}ms for type: ${currentItem.type}`);
       
+      setMediaTime(0);
+      const startTime = Date.now();
+      const interval = setInterval(() => {
+        setMediaTime(Math.floor((Date.now() - startTime) / 1000));
+      }, 1000);
+
       timeoutRef.current = setTimeout(() => {
+        clearInterval(interval);
         handleNextItem();
       }, waitTime);
+
+      // Delayed preload for non-video items too
+      setShouldPreload(false);
+      if (preloadDelayRef.current) clearTimeout(preloadDelayRef.current);
+      preloadDelayRef.current = setTimeout(() => setShouldPreload(true), 3000);
+
+      return () => {
+        clearInterval(interval);
+        if (preloadDelayRef.current) clearTimeout(preloadDelayRef.current);
+      }
+    }
+
+    if (currentItem.type === 'video') {
+      setShouldPreload(false);
+      if (preloadDelayRef.current) clearTimeout(preloadDelayRef.current);
+      preloadDelayRef.current = setTimeout(() => setShouldPreload(true), 3000);
     }
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (preloadDelayRef.current) clearTimeout(preloadDelayRef.current);
     };
   }, [currentIndex, items, playCount, deviceId, device?.is_playing]);
 
@@ -306,9 +335,6 @@ const Player = () => {
         }`}
         style={wrapperStyles}
       >
-
-
-
         
         {currentItem.type === 'video' ? (
           <video
@@ -321,6 +347,14 @@ const Player = () => {
             muted={device?.muted !== 0} 
             onEnded={handleVideoEnded}
             onError={handleVideoError}
+            onTimeUpdate={(e) => {
+              const now = Date.now();
+              // Update state only every 500ms
+              if (now - lastTimeUpdateRef.current >= 500) {
+                setMediaTime(e.target.currentTime);
+                lastTimeUpdateRef.current = now;
+              }
+            }}
           />
 
         ) : currentItem.type === 'template' ? (
@@ -341,10 +375,10 @@ const Player = () => {
         )}
 
         {/* Text Overlays */}
-        <TextOverlayRenderer overlays={activeOverlays} />
+        <TextOverlayRenderer overlays={activeOverlays} mediaTime={mediaTime} />
 
         {/* Predictive Preloading - Hidden from view, but warms up browser cache */}
-        {nextItem && nextItem.id !== currentItem.id && (
+        {shouldPreload && nextItem && nextItem.id !== currentItem.id && (
           <div className="hidden pointer-events-none w-0 h-0 overflow-hidden" aria-hidden="true">
             {nextItem.type === 'video' ? (
               <video src={MEDIA_BASE + nextItem.path} preload="auto" muted />

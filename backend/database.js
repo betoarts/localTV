@@ -43,26 +43,11 @@ const initDb = () => {
     )`);
 
     // Gracefully add transition column if it doesn't exist (for existing DBs)
-    db.run("ALTER TABLE devices ADD COLUMN transition TEXT DEFAULT 'fade'", (err) => {
-      // Ignore error if column already exists
-    });
-
-    db.run("ALTER TABLE devices ADD COLUMN resolution TEXT DEFAULT 'auto'", (err) => {
-      // Ignore error if column already exists
-    });
-
-    // Gracefully add client_id column
+    db.run("ALTER TABLE devices ADD COLUMN transition TEXT DEFAULT 'fade'", (err) => {});
+    db.run("ALTER TABLE devices ADD COLUMN resolution TEXT DEFAULT 'auto'", (err) => {});
     db.run("ALTER TABLE devices ADD COLUMN client_id TEXT DEFAULT 'default'", (err) => {});
-
-    // Gracefully add muted column 
-    db.run("ALTER TABLE devices ADD COLUMN muted INTEGER DEFAULT 1", (err) => {
-      // Ignore error if column already exists
-    });
-
-    // Gracefully add is_playing column 
-    db.run("ALTER TABLE devices ADD COLUMN is_playing INTEGER DEFAULT 1", (err) => {
-      // Ignore error if column already exists
-    });
+    db.run("ALTER TABLE devices ADD COLUMN muted INTEGER DEFAULT 1", (err) => {});
+    db.run("ALTER TABLE devices ADD COLUMN is_playing INTEGER DEFAULT 1", (err) => {});
 
     // Media table
     db.run(`CREATE TABLE IF NOT EXISTS media (
@@ -97,7 +82,7 @@ const initDb = () => {
       FOREIGN KEY(template_id) REFERENCES templates(id)
     )`);
 
-    // Device playlists (for future multi-playlist support)
+    // Device playlists
     db.run(`CREATE TABLE IF NOT EXISTS device_playlists (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       device_id INTEGER NOT NULL,
@@ -116,12 +101,9 @@ const initDb = () => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
-    // Gracefully add template_id and data_json columns to playlist_items if they don't exist
     db.run("ALTER TABLE playlist_items ADD COLUMN template_id INTEGER", (err) => {});
     db.run("ALTER TABLE playlist_items ADD COLUMN data_json TEXT", (err) => {});
     db.run("ALTER TABLE playlist_items ADD COLUMN client_id TEXT DEFAULT 'default'", (err) => {});
-
-    // Gracefully add client_id columns to media/playlists
     db.run("ALTER TABLE media ADD COLUMN client_id TEXT DEFAULT 'default'", (err) => {});
     db.run("ALTER TABLE playlists ADD COLUMN client_id TEXT DEFAULT 'default'", (err) => {});
     db.run("ALTER TABLE templates ADD COLUMN client_id TEXT DEFAULT 'default'", (err) => {});
@@ -149,19 +131,29 @@ const initDb = () => {
       icon_name TEXT DEFAULT NULL,
       icon_size INTEGER DEFAULT 24,
       icon_color TEXT DEFAULT '#FFFFFF',
+      item_order INTEGER DEFAULT 0,
+      start_time TEXT DEFAULT NULL,
+      end_time TEXT DEFAULT NULL,
+      start_offset INTEGER DEFAULT 0,
+      end_offset INTEGER DEFAULT 0,
+      image_path TEXT DEFAULT NULL,
+      image_size INTEGER DEFAULT 100,
       template_id INTEGER,
       data_json TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(template_id) REFERENCES templates(id)
     )`);
 
-    // Gracefully add image columns to text_overlays
+    // Gracefully add columns to text_overlays
+    db.run("ALTER TABLE text_overlays ADD COLUMN item_order INTEGER DEFAULT 0", (err) => {});
+    db.run("ALTER TABLE text_overlays ADD COLUMN start_time TEXT DEFAULT NULL", (err) => {});
+    db.run("ALTER TABLE text_overlays ADD COLUMN end_time TEXT DEFAULT NULL", (err) => {});
+    db.run("ALTER TABLE text_overlays ADD COLUMN start_offset INTEGER DEFAULT 0", (err) => {});
+    db.run("ALTER TABLE text_overlays ADD COLUMN end_offset INTEGER DEFAULT 0", (err) => {});
     db.run("ALTER TABLE text_overlays ADD COLUMN image_path TEXT DEFAULT NULL", (err) => {});
     db.run("ALTER TABLE text_overlays ADD COLUMN image_size INTEGER DEFAULT 100", (err) => {});
     db.run("ALTER TABLE text_overlays ADD COLUMN template_id INTEGER", (err) => {});
     db.run("ALTER TABLE text_overlays ADD COLUMN data_json TEXT", (err) => {});
-
-    // Gracefully add new feature columns
     db.run("ALTER TABLE text_overlays ADD COLUMN font_family TEXT DEFAULT 'Roboto'", (err) => {});
     db.run("ALTER TABLE text_overlays ADD COLUMN pos_x INTEGER DEFAULT 50", (err) => {});
     db.run("ALTER TABLE text_overlays ADD COLUMN pos_y INTEGER DEFAULT 50", (err) => {});
@@ -176,7 +168,7 @@ const initDb = () => {
     db.run("UPDATE playlist_items SET client_id = 'default' WHERE client_id IS NULL", () => {});
     db.run("UPDATE templates SET client_id = 'default' WHERE client_id IS NULL", () => {});
 
-    // --- Performance Optimization Indexes ---
+    // Performance Optimization Indexes
     db.run("CREATE INDEX IF NOT EXISTS idx_devices_playlist ON devices(playlist_id)");
     db.run("CREATE INDEX IF NOT EXISTS idx_playlist_items_playlist ON playlist_items(playlist_id)");
     db.run("CREATE INDEX IF NOT EXISTS idx_playlist_items_order ON playlist_items(item_order)");
@@ -187,6 +179,7 @@ const initDb = () => {
     db.run("CREATE INDEX IF NOT EXISTS idx_media_client ON media(client_id)");
     db.run("CREATE INDEX IF NOT EXISTS idx_playlist_items_client ON playlist_items(client_id)");
     db.run("CREATE INDEX IF NOT EXISTS idx_templates_client ON templates(client_id)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_overlays_order ON text_overlays(item_order)");
 
   });
 };
