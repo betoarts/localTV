@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const compression = require('compression');
 const cors = require('cors');
@@ -224,6 +225,13 @@ setInterval(() => {
     () => io.emit('devices_updated')
   );
 }, HEARTBEAT_INTERVAL_MS);
+
+// ===== CHAT / AI ASSISTANT =====
+const chatRoutes = require('./routes/chatRoutes');
+app.use('/api', chatRoutes);
+
+const settingsRoutes = require('./routes/settingsRoutes');
+app.use('/api/settings', settingsRoutes);
 
 // ===== API ENDPOINTS =====
 

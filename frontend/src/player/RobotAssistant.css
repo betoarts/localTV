@@ -1,0 +1,536 @@
+/* ===== Robot Assistant — Overlay styles ===== */
+
+/* ---------- Layout & Container ---------- */
+.ra-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  pointer-events: auto;
+  cursor: auto !important;
+}
+
+.ra-toggle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 230, 255, 0.4);
+  background: linear-gradient(145deg, #0d1b2a 0%, #1b2838 100%);
+  color: #00e6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow:
+    0 0 20px rgba(0, 230, 255, 0.15),
+    0 4px 20px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+  font-size: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ra-toggle::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    rgba(0, 230, 255, 0.3) 25%,
+    transparent 50%
+  );
+  animation: ra-ring-spin 4s linear infinite;
+  z-index: -1;
+}
+
+.ra-toggle:hover {
+  transform: scale(1.1);
+  border-color: rgba(0, 230, 255, 0.7);
+  box-shadow:
+    0 0 30px rgba(0, 230, 255, 0.3),
+    0 4px 30px rgba(0, 0, 0, 0.6);
+}
+
+.ra-panel {
+  width: 360px;
+  max-height: 520px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 230, 255, 0.15);
+  background: rgba(10, 18, 30, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow:
+    0 0 40px rgba(0, 230, 255, 0.08),
+    0 8px 40px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: ra-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- Header ---------- */
+.ra-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(0, 230, 255, 0.1);
+  background: linear-gradient(180deg, rgba(0, 230, 255, 0.06) 0%, transparent 100%);
+}
+
+.ra-header-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e0f7ff;
+  letter-spacing: 0.04em;
+}
+
+.ra-header-provider {
+  font-size: 10px;
+  color: rgba(0, 230, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.ra-header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.ra-btn-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 230, 255, 0.15);
+  background: rgba(0, 230, 255, 0.05);
+  color: #00e6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.ra-btn-icon:hover {
+  background: rgba(0, 230, 255, 0.15);
+  border-color: rgba(0, 230, 255, 0.4);
+}
+
+.ra-btn-icon.active {
+  background: rgba(0, 230, 255, 0.2);
+  border-color: rgba(0, 230, 255, 0.5);
+}
+
+/* ---------- Avatar ---------- */
+.ra-avatar {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.ra-avatar-head {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #1a3a5c 0%, #0d2240 60%, #0a1929 100%);
+  border: 2px solid rgba(0, 230, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 12px rgba(0, 230, 255, 0.1);
+}
+
+/* Antenna */
+.ra-antenna {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 10px;
+  background: linear-gradient(180deg, #00e6ff, rgba(0, 230, 255, 0.3));
+  z-index: 1;
+}
+
+.ra-antenna::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00e6ff;
+  box-shadow: 0 0 8px #00e6ff;
+  animation: ra-antenna-pulse 2s ease-in-out infinite;
+}
+
+/* Eyes */
+.ra-eyes {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 0;
+}
+
+.ra-eye {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00e6ff;
+  box-shadow: 0 0 6px rgba(0, 230, 255, 0.6);
+  animation: ra-blink 4s ease-in-out infinite;
+}
+
+.ra-eye:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+/* Mouth */
+.ra-mouth {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(0, 230, 255, 0.4);
+  transition: all 0.15s;
+}
+
+.ra-avatar.speaking .ra-mouth {
+  animation: ra-speak 0.3s ease-in-out infinite alternate;
+  background: #00e6ff;
+  box-shadow: 0 0 6px rgba(0, 230, 255, 0.5);
+}
+
+/* ---------- Messages ---------- */
+.ra-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 200px;
+  max-height: 320px;
+  scroll-behavior: smooth;
+}
+
+.ra-messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ra-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ra-messages::-webkit-scrollbar-thumb {
+  background: rgba(0, 230, 255, 0.15);
+  border-radius: 2px;
+}
+
+.ra-msg {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  animation: ra-msg-in 0.25s ease-out;
+}
+
+.ra-msg.user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, rgba(0, 230, 255, 0.15) 0%, rgba(0, 180, 230, 0.1) 100%);
+  border: 1px solid rgba(0, 230, 255, 0.2);
+  color: #d0f0ff;
+  border-bottom-right-radius: 4px;
+}
+
+.ra-msg.assistant {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #c8d8e8;
+  border-bottom-left-radius: 4px;
+}
+
+.ra-msg-meta {
+  font-size: 10px;
+  color: rgba(0, 230, 255, 0.35);
+  margin-top: 4px;
+  letter-spacing: 0.05em;
+}
+
+/* Thinking indicator */
+.ra-thinking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  align-self: flex-start;
+  animation: ra-msg-in 0.25s ease-out;
+}
+
+.ra-thinking-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.ra-thinking-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(0, 230, 255, 0.5);
+  animation: ra-dot-bounce 1.4s ease-in-out infinite;
+}
+
+.ra-thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+.ra-thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+
+.ra-thinking-text {
+  font-size: 11px;
+  color: rgba(0, 230, 255, 0.4);
+  font-style: italic;
+}
+
+/* ---------- Input ---------- */
+.ra-input-area {
+  display: flex;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid rgba(0, 230, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.ra-input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 230, 255, 0.15);
+  background: rgba(0, 230, 255, 0.03);
+  color: #e0f0ff;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.ra-input::placeholder {
+  color: rgba(0, 230, 255, 0.25);
+}
+
+.ra-input:focus {
+  border-color: rgba(0, 230, 255, 0.4);
+  box-shadow: 0 0 0 2px rgba(0, 230, 255, 0.05);
+}
+
+.ra-send-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 230, 255, 0.3);
+  background: linear-gradient(135deg, rgba(0, 230, 255, 0.1) 0%, rgba(0, 180, 230, 0.15) 100%);
+  color: #00e6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.ra-send-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(0, 230, 255, 0.2) 0%, rgba(0, 180, 230, 0.25) 100%);
+  border-color: rgba(0, 230, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.ra-send-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ---------- Provider selector ---------- */
+.ra-provider-bar {
+  display: flex;
+  gap: 4px;
+  padding: 8px 14px;
+  border-top: 1px solid rgba(0, 230, 255, 0.06);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.ra-provider-btn {
+  flex: 1;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 230, 255, 0.1);
+  background: transparent;
+  color: rgba(0, 230, 255, 0.4);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.ra-provider-btn:hover {
+  background: rgba(0, 230, 255, 0.05);
+  color: rgba(0, 230, 255, 0.6);
+}
+
+.ra-provider-btn.selected {
+  background: rgba(0, 230, 255, 0.1);
+  border-color: rgba(0, 230, 255, 0.3);
+  color: #00e6ff;
+}
+
+/* ---------- Welcome ---------- */
+.ra-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  flex: 1;
+}
+
+.ra-welcome-avatar {
+  width: 64px;
+  height: 64px;
+}
+
+.ra-welcome-avatar .ra-avatar-head {
+  width: 64px;
+  height: 64px;
+}
+
+.ra-welcome-avatar .ra-eyes {
+  top: 18px;
+  gap: 12px;
+}
+
+.ra-welcome-avatar .ra-eye {
+  width: 10px;
+  height: 10px;
+}
+
+.ra-welcome-avatar .ra-mouth {
+  bottom: 15px;
+  width: 16px;
+  height: 4px;
+}
+
+.ra-welcome-avatar .ra-antenna {
+  top: -10px;
+  height: 12px;
+}
+
+.ra-welcome-text {
+  font-size: 14px;
+  color: #c8d8e8;
+  max-width: 260px;
+  line-height: 1.5;
+}
+
+.ra-welcome-hint {
+  font-size: 11px;
+  color: rgba(0, 230, 255, 0.3);
+}
+
+/* ---------- Animations ---------- */
+@keyframes ra-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ra-blink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+
+@keyframes ra-speak {
+  0% {
+    height: 3px;
+    width: 12px;
+    border-radius: 2px;
+  }
+  100% {
+    height: 8px;
+    width: 10px;
+    border-radius: 50%;
+  }
+}
+
+@keyframes ra-antenna-pulse {
+  0%, 100% {
+    opacity: 0.5;
+    box-shadow: 0 0 4px rgba(0, 230, 255, 0.3);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 12px rgba(0, 230, 255, 0.8);
+  }
+}
+
+@keyframes ra-dot-bounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  40% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+@keyframes ra-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ra-ring-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 420px) {
+  .ra-panel {
+    width: calc(100vw - 32px);
+    right: 0;
+    max-height: 70vh;
+  }
+
+  .ra-container {
+    bottom: 16px;
+    right: 16px;
+  }
+}

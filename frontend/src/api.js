@@ -70,4 +70,10 @@ export const deleteClient = (id) => api.delete(`${API_URL}/clients/${id}`).then(
 
 export const getWeather = (city) => api.get(`${API_URL}/weather?city=${encodeURIComponent(city || 'Canela,RS')}`).then(res => res.data);
 
+export const sendChatMessage = (message, provider) =>
+  api.post(`${API_URL}/chat`, { message, provider }).then(res => res.data);
+
+export const getChatStatus = () =>
+  api.get(`${API_URL}/chat/status`).then(res => res.data);
+
 

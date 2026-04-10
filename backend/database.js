@@ -181,6 +181,13 @@ const initDb = () => {
     db.run("CREATE INDEX IF NOT EXISTS idx_templates_client ON templates(client_id)");
     db.run("CREATE INDEX IF NOT EXISTS idx_overlays_order ON text_overlays(item_order)");
 
+    // App Settings table (Key/Value store for configurations like AI System Prompt)
+    db.run(`CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
   });
 };
 

@@ -12,11 +12,13 @@ const Devices = lazy(() => import('./admin/Devices'));
 const TextOverlays = lazy(() => import('./admin/TextOverlays'));
 const Templates = lazy(() => import('./admin/Templates'));
 const ConfigSettings = lazy(() => import('./admin/ConfigSettings'));
+const AIAssistantConfig = lazy(() => import('./admin/AIAssistantConfig'));
 const Login = lazy(() => import('./admin/Login'));
 
 // Player is the most critical route, could be preloaded or kept static
 // but lazy loading also helps isolation.
 import Player from './player/Player';
+import AssistantPage from './player/AssistantPage';
 
 const LoadingScreen = () => (
   <div className="min-h-screen bg-[#050505] flex items-center justify-center">
@@ -43,11 +45,15 @@ function App() {
               <Route path="devices" element={<Devices />} />
               <Route path="overlays" element={<TextOverlays />} />
               <Route path="settings" element={<ConfigSettings />} />
+              <Route path="assistant-config" element={<AIAssistantConfig />} />
             </Route>
           </Route>
 
           {/* Player Route - Not Protected */}
           <Route path="/player/:deviceId" element={<Player />} />
+
+          {/* Assistant Standalone — Tablet */}
+          <Route path="/assistant" element={<AssistantPage />} />
         </Routes>
       </Suspense>
     </Router>

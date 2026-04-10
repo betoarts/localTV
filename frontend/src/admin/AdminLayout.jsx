@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Film, MonitorPlay, RadioReceiver, Activity, Type, LogOut, Settings, Menu, X, Layout, Users } from 'lucide-react';
+import { LayoutDashboard, Film, MonitorPlay, RadioReceiver, Activity, Type, LogOut, Settings, Menu, X, Layout, Users, Bot } from 'lucide-react';
 import { getClients, getClientId, setClientId } from '../api';
 
 
@@ -40,6 +40,7 @@ const AdminLayout = () => {
     { name: 'TEMPLATES', path: '/admin/templates', icon: <Layout size={18} /> },
     { name: 'DEVICES', path: '/admin/devices', icon: <RadioReceiver size={18} /> },
     { name: 'OVERLAYS', path: '/admin/overlays', icon: <Type size={18} /> },
+    { name: 'AI_ASSISTANT', path: '/admin/assistant-config', icon: <Bot size={18} /> },
     { name: 'SETTINGS', path: '/admin/settings', icon: <Settings size={18} /> },
   ];
 

@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import { getDevice, getPlaylistItems, getOverlaysByTarget, getPlaylistItemsOverlays, API_BASE, setClientId } from '../api';
 import TextOverlayRenderer from './TextOverlayRenderer';
 import TemplateRenderer from './TemplateRenderer';
+import RobotAssistant from './RobotAssistant';
 
 const SOCKET_URL = API_BASE || undefined;
 const MEDIA_BASE = API_BASE;
@@ -52,6 +53,7 @@ const Player = () => {
   const lastTimeUpdateRef = useRef(0);
   const preloadDelayRef = useRef(null);
   const [shouldPreload, setShouldPreload] = useState(false);
+  const [playBlocked, setPlayBlocked] = useState(false);
 
   const fetchOverlays = async (d) => {
     try {
@@ -168,13 +170,15 @@ const Player = () => {
       socketRef.current.emit('now_playing', { deviceId, media: currentItem });
     }
     
+    let interval = null;
+
     if (currentItem.type === 'image' || currentItem.type === 'template') {
       const waitTime = (currentItem.duration || currentItem.default_duration || 10) * 1000;
       console.log(`[PLAYER] Scheduled next item in ${waitTime}ms for type: ${currentItem.type}`);
       
       setMediaTime(0);
       const startTime = Date.now();
-      const interval = setInterval(() => {
+      interval = setInterval(() => {
         setMediaTime(Math.floor((Date.now() - startTime) / 1000));
       }, 1000);
 
@@ -187,20 +191,14 @@ const Player = () => {
       setShouldPreload(false);
       if (preloadDelayRef.current) clearTimeout(preloadDelayRef.current);
       preloadDelayRef.current = setTimeout(() => setShouldPreload(true), 3000);
-
-      return () => {
-        clearInterval(interval);
-        if (preloadDelayRef.current) clearTimeout(preloadDelayRef.current);
-      }
-    }
-
-    if (currentItem.type === 'video') {
+    } else if (currentItem.type === 'video') {
       setShouldPreload(false);
       if (preloadDelayRef.current) clearTimeout(preloadDelayRef.current);
       preloadDelayRef.current = setTimeout(() => setShouldPreload(true), 3000);
     }
 
     return () => {
+      if (interval) clearInterval(interval);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (preloadDelayRef.current) clearTimeout(preloadDelayRef.current);
     };
@@ -210,6 +208,8 @@ const Player = () => {
   const currentItemRef = items[currentIndex];
 
   useEffect(() => {
+    if (playBlocked) return;
+    
     if (videoRef.current && currentItemRef?.type === 'video') {
       const isMuted = device?.muted !== 0;
       console.log(`[PLAYER] Initializing video playback. Path: ${currentItemRef.path}, Muted: ${isMuted}`);
@@ -227,20 +227,24 @@ const Player = () => {
             videoRef.current.muted = true;
             videoRef.current.play().catch(e => {
               console.error('[PLAYER] Playback completely blocked:', e);
-              handleNextItem();
+              setPlayBlocked(true);
             });
           } else {
-             handleNextItem();
+             setPlayBlocked(true);
           }
         });
       }
     }
-  }, [currentIndex, playCount, currentItemRef, device?.muted]);
+  }, [currentIndex, playCount, currentItemRef, device?.muted, playBlocked]);
 
   const handleVideoEnded = () => handleNextItem();
   const handleVideoError = () => handleNextItem();
 
   const handleStartFullscreen = () => {
+    setPlayBlocked(false);
+    if (videoRef.current) {
+        videoRef.current.play().catch(e => console.error(e));
+    }
     if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
       document.documentElement.requestFullscreen().catch(err => console.error(err));
     }
@@ -388,6 +392,20 @@ const Player = () => {
           </div>
         )}
       </div>
+
+      {/* Autoplay Blocked Overlay */}
+      {playBlocked && (
+        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 text-white cursor-pointer" onClick={handleStartFullscreen}>
+          <div className="w-24 h-24 mb-6 rounded-full bg-white/10 flex items-center justify-center border-2 border-white/20 animate-pulse">
+            <div className="w-0 h-0 border-t-[16px] border-t-transparent border-l-[24px] border-l-white border-b-[16px] border-b-transparent ml-2"></div>
+          </div>
+          <h2 className="text-3xl font-bold tracking-widest uppercase text-white/90">TRANSMISSÃO BLOQUEADA</h2>
+          <p className="mt-4 text-white/60 text-lg uppercase tracking-wider">Clique na tela para continuar</p>
+        </div>
+      )}
+
+      {/* AI Assistant Overlay */}
+      <RobotAssistant />
     </div>
 
   );
