@@ -226,6 +226,7 @@ const OverlayItem = memo(({ overlay, zIndex }) => {
             src={MEDIA_BASE + overlay.image_path}
             alt=""
             style={imageStyle}
+            decoding="async"
           />
         )}
         {hasImage && isLottie && lottieData && (
