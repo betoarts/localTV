@@ -2,9 +2,13 @@ const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const GEMMA_MODEL = process.env.GEMMA_MODEL || 'gemma';
 const GEMMA_TIMEOUT = 60000;
 
-async function chat(message, systemPrompt) {
+async function chat(messages, systemPrompt) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), GEMMA_TIMEOUT);
+
+  const transcript = messages
+    .map((item) => `${item.role === 'assistant' ? 'Assistente' : 'Usuário'}: ${item.content}`)
+    .join('\n');
 
   try {
     const res = await fetch(`${OLLAMA_URL}/api/generate`, {
@@ -12,7 +16,7 @@ async function chat(message, systemPrompt) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: GEMMA_MODEL,
-        prompt: `${systemPrompt}\n\nUsuário: ${message}\nAssistente:`,
+        prompt: `${systemPrompt}\n\n${transcript}\nAssistente:`,
         stream: false,
       }),
       signal: controller.signal,

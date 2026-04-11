@@ -1,7 +1,7 @@
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const OPENAI_TIMEOUT = 25000;
 
-async function chat(message, systemPrompt) {
+async function chat(messages, systemPrompt) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY not configured');
@@ -21,7 +21,7 @@ async function chat(message, systemPrompt) {
         model: OPENAI_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: message },
+          ...messages,
         ],
         max_tokens: 256,
         temperature: 0.7,

@@ -1,7 +1,7 @@
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const GEMINI_TIMEOUT = 20000;
 
-async function chat(message, systemPrompt) {
+async function chat(messages, systemPrompt) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
@@ -18,7 +18,10 @@ async function chat(message, systemPrompt) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ parts: [{ text: message }] }],
+        contents: messages.map((item) => ({
+          role: item.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: item.content }],
+        })),
         generationConfig: {
           maxOutputTokens: 256,
           temperature: 0.7,

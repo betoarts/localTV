@@ -7,6 +7,7 @@ const defaultAiSettings = {
   systemPrompt: `Você é um assistente virtual de TV inteligente chamado "LocalTV AI". 
 Responda de forma concisa, amigável e informativa. Máximo 3 frases por resposta.
 Você ajuda com informações gerais, notícias, clima e entretenimento.`,
+  enableVoice: true,
   suggestions: [
     'Que horas são?',
     'Qual a previsão do tempo?',
@@ -55,7 +56,7 @@ router.get('/ai', async (req, res) => {
 
 router.post('/ai', async (req, res) => {
   try {
-    const { systemPrompt, suggestions, responseLength, enableOverlay } = req.body;
+    const { systemPrompt, suggestions, responseLength, enableOverlay, enableVoice } = req.body;
     
     // Basic validation
     if (!systemPrompt || !Array.isArray(suggestions)) {
@@ -66,7 +67,8 @@ router.post('/ai', async (req, res) => {
       systemPrompt, 
       suggestions, 
       responseLength: responseLength || 'curto',
-      enableOverlay: enableOverlay !== undefined ? enableOverlay : true 
+      enableOverlay: enableOverlay !== undefined ? enableOverlay : true,
+      enableVoice: enableVoice !== undefined ? enableVoice : true
     });
     await setSetting('ai_config', payload);
     res.json({ success: true });

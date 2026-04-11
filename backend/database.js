@@ -188,6 +188,27 @@ const initDb = () => {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    db.run(`CREATE TABLE IF NOT EXISTS assistant_memory (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id TEXT DEFAULT 'default',
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS assistant_facts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id TEXT DEFAULT 'default',
+      fact_key TEXT NOT NULL,
+      fact_value TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(client_id, fact_key)
+    )`);
+
+    db.run("CREATE INDEX IF NOT EXISTS idx_assistant_memory_client_created ON assistant_memory(client_id, created_at)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_assistant_facts_client ON assistant_facts(client_id)");
+
   });
 };
 

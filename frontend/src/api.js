@@ -76,4 +76,16 @@ export const sendChatMessage = (message, provider) =>
 export const getChatStatus = () =>
   api.get(`${API_URL}/chat/status`).then(res => res.data);
 
+export const getAssistantMemory = () =>
+  api.get(`${API_URL}/chat/memory`).then(res => res.data);
+
+export const clearAssistantMemory = () =>
+  api.delete(`${API_URL}/chat/memory`).then(res => res.data);
+
+export const getAssistantMemoryForClient = (clientId) =>
+  api.get(`${API_URL}/chat/memory`, { headers: { 'x-client-id': clientId } }).then(res => res.data);
+
+export const clearAssistantMemoryForClient = (clientId) =>
+  api.delete(`${API_URL}/chat/memory`, { headers: { 'x-client-id': clientId } }).then(res => res.data);
+
 

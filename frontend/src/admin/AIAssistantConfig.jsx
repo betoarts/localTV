@@ -7,6 +7,7 @@ const AIAssistantConfig = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [responseLength, setResponseLength] = useState('curto');
   const [enableOverlay, setEnableOverlay] = useState(true);
+  const [enableVoice, setEnableVoice] = useState(true);
   const [newSuggestion, setNewSuggestion] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -28,6 +29,9 @@ const AIAssistantConfig = () => {
       if (data.enableOverlay !== undefined) {
         setEnableOverlay(data.enableOverlay);
       }
+      if (data.enableVoice !== undefined) {
+        setEnableVoice(data.enableVoice);
+      }
     } catch (error) {
       console.error('Error fetching AI settings:', error);
       setStatus({ type: 'error', message: 'Erro ao carregar configurações da IA.' });
@@ -43,7 +47,7 @@ const AIAssistantConfig = () => {
       const res = await fetch(`${API_BASE}/api/settings/ai`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ systemPrompt, suggestions, responseLength, enableOverlay })
+        body: JSON.stringify({ systemPrompt, suggestions, responseLength, enableOverlay, enableVoice })
       });
       if (!res.ok) throw new Error('Falha ao salvar');
       
@@ -122,6 +126,26 @@ const AIAssistantConfig = () => {
             className="sr-only peer" 
             checked={enableOverlay}
             onChange={(e) => setEnableOverlay(e.target.checked)}
+          />
+          <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+        </label>
+      </div>
+
+      <div className="bg-[#0a0a0a] border border-neutral-800 p-6 mb-4 group hover:border-amber-500/40 transition-colors flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-bold text-neutral-200 uppercase tracking-widest mb-1">
+            Habilitar Microfone no Assistente
+          </h3>
+          <p className="text-xs text-neutral-500">
+            Ativa ou desativa a entrada por voz na tela `/assistant` e no assistente flutuante.
+          </p>
+        </div>
+        <label className="relative inline-flex items-center cursor-pointer ml-4 shrink-0">
+          <input
+            type="checkbox"
+            className="sr-only peer"
+            checked={enableVoice}
+            onChange={(e) => setEnableVoice(e.target.checked)}
           />
           <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
         </label>

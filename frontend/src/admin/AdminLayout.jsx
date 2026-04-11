@@ -41,6 +41,7 @@ const AdminLayout = () => {
     { name: 'DEVICES', path: '/admin/devices', icon: <RadioReceiver size={18} /> },
     { name: 'OVERLAYS', path: '/admin/overlays', icon: <Type size={18} /> },
     { name: 'AI_ASSISTANT', path: '/admin/assistant-config', icon: <Bot size={18} /> },
+    { name: 'AI_MEMORY', path: '/admin/assistant-memory', icon: <Bot size={18} /> },
     { name: 'SETTINGS', path: '/admin/settings', icon: <Settings size={18} /> },
   ];
 

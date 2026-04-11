@@ -5,6 +5,9 @@ echo =======================================
 echo  Local TV - Instalador
 echo =======================================
 echo.
+echo Este instalador prepara o painel, player e assistente com voz.
+echo OBS: O microfone do assistente funciona em localhost ou HTTPS.
+echo.
 
 echo [1/4] Instalando dependencias do Backend...
 cd backend
@@ -40,6 +43,10 @@ echo =======================================
 echo.
 echo Proximo passo: Edite o arquivo "backend\.env" e defina DATA_DIR
 echo para uma pasta persistente (ex: C:\LocalTV_Data) antes de iniciar.
+echo.
+echo Assistente com voz:
+echo - Local: http://localhost:5173/assistant
+echo - Em tablet pela rede local, o microfone pode exigir HTTPS.
 echo.
 echo Depois execute start.bat para iniciar o sistema.
 echo =======================================

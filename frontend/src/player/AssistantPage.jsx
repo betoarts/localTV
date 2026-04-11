@@ -1,12 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { sendChatMessage } from '../api';
+import { API_BASE, clearAssistantMemory, sendChatMessage } from '../api';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import './AssistantPage.css';
-
-const PROVIDERS = [
-  { id: 'gemma', label: 'Gemma', icon: '🧠' },
-  { id: 'gemini', label: 'Gemini', icon: '✨' },
-  { id: 'openai', label: 'OpenAI', icon: '⚡' },
-];
 
 const SUGGESTIONS = [
   'Que horas são?',
@@ -21,12 +16,36 @@ const AssistantPage = () => {
   const [loading, setLoading] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [muted, setMuted] = useState(false);
-  const [provider, setProvider] = useState('gemini');
   const [dynamicSuggestions, setDynamicSuggestions] = useState(SUGGESTIONS);
+  const [voiceNotice, setVoiceNotice] = useState('');
+  const [pushToTalkActive, setPushToTalkActive] = useState(false);
+  const [enableVoice, setEnableVoice] = useState(true);
+  const [clearingMemory, setClearingMemory] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
+
+  const {
+    supported: voiceSupported,
+    secureContext,
+    listening,
+    transcript,
+    error: voiceError,
+    startListening,
+    stopListening,
+    clearError,
+  } = useSpeechRecognition({
+    lang: 'pt-BR',
+    onInterimResult: (partial) => {
+      setInput(partial);
+    },
+    onFinalResult: (finalText) => {
+      setInput(finalText);
+      setVoiceNotice('Pergunta capturada. Enviando...');
+      handleSend(finalText);
+    },
+  });
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -40,11 +59,14 @@ const AssistantPage = () => {
     inputRef.current?.focus();
     
     // Fetch suggestions from backend
-    fetch('http://localhost:3000/api/settings/ai')
+    fetch(`${API_BASE}/api/settings/ai`)
       .then(res => res.json())
       .then(data => {
         if (data.suggestions && data.suggestions.length > 0) {
           setDynamicSuggestions(data.suggestions);
+        }
+        if (data.enableVoice !== undefined) {
+          setEnableVoice(data.enableVoice);
         }
       })
       .catch(err => console.error('Failed to load AI config:', err));
@@ -78,8 +100,21 @@ const AssistantPage = () => {
   useEffect(() => {
     return () => {
       synthRef.current?.cancel();
+      stopListening();
     };
-  }, []);
+  }, [stopListening]);
+
+  useEffect(() => {
+    if (voiceError) {
+      setVoiceNotice(voiceError);
+    }
+  }, [voiceError]);
+
+  useEffect(() => {
+    if (!listening && transcript && !voiceError) {
+      setVoiceNotice('Transcricao concluida.');
+    }
+  }, [listening, transcript, voiceError]);
 
   const speak = useCallback((text) => {
     if (muted || !synthRef.current) return;
@@ -105,10 +140,12 @@ const AssistantPage = () => {
     const userMsg = { role: 'user', content: msg, time: new Date() };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
+    setVoiceNotice('');
+    clearError();
     setLoading(true);
 
     try {
-      const result = await sendChatMessage(msg, provider);
+      const result = await sendChatMessage(msg);
       const assistantMsg = {
         role: 'assistant',
         content: result.reply,
@@ -148,8 +185,59 @@ const AssistantPage = () => {
 
   const clearChat = () => {
     synthRef.current?.cancel();
+    stopListening();
     setSpeaking(false);
     setMessages([]);
+    setInput('');
+    setVoiceNotice('');
+    clearError();
+  };
+
+  const handleClearMemory = async () => {
+    if (clearingMemory) return;
+    setClearingMemory(true);
+    try {
+      await clearAssistantMemory();
+      clearChat();
+      setVoiceNotice('Memoria do assistente apagada.');
+    } catch {
+      setVoiceNotice('Nao foi possivel limpar a memoria do assistente.');
+    } finally {
+      setClearingMemory(false);
+    }
+  };
+
+  const startPushToTalk = (e) => {
+    e.preventDefault();
+    if (loading || listening || !enableVoice || !voiceSupported || !secureContext) return;
+
+    const started = startListening();
+    if (started) {
+      setPushToTalkActive(true);
+      setVoiceNotice('Ouvindo... solte para enviar.');
+      inputRef.current?.focus();
+    }
+  };
+
+  const stopPushToTalk = (e) => {
+    e?.preventDefault?.();
+    if (!pushToTalkActive) return;
+
+    setPushToTalkActive(false);
+    stopListening();
+    setVoiceNotice('Processando fala...');
+  };
+
+  const handleVoiceKeyDown = (e) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      startPushToTalk(e);
+    }
+  };
+
+  const handleVoiceKeyUp = (e) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      stopPushToTalk(e);
+    }
   };
 
   const formatTime = (date) => {
@@ -177,7 +265,13 @@ const AssistantPage = () => {
         <div className="ast-header-info">
           <div className="ast-header-title">LocalTV AI Assistant</div>
           <div className="ast-header-subtitle">
-            {speaking ? '🔊 Falando...' : loading ? '⏳ Processando...' : `Pronto · via ${provider}`}
+            {listening
+              ? '🎙️ Ouvindo...'
+              : speaking
+                ? '🔊 Falando...'
+                : loading
+                  ? '⏳ Processando...'
+                  : 'Pronto'}
           </div>
         </div>
 
@@ -198,6 +292,14 @@ const AssistantPage = () => {
           </button>
           <button
             className="ast-ctrl-btn"
+            onClick={handleClearMemory}
+            title="Limpar memoria"
+            disabled={clearingMemory}
+          >
+            🧠
+          </button>
+          <button
+            className="ast-ctrl-btn"
             onClick={() => {
               if (document.fullscreenElement) {
                 document.exitFullscreen().catch(() => {});
@@ -211,20 +313,6 @@ const AssistantPage = () => {
           </button>
         </div>
       </header>
-
-      {/* Provider selector */}
-      <div className="ast-providers">
-        {PROVIDERS.map(p => (
-          <button
-            key={p.id}
-            className={`ast-provider ${provider === p.id ? 'selected' : ''}`}
-            onClick={() => setProvider(p.id)}
-          >
-            <span className="ast-provider-icon">{p.icon}</span>
-            {p.label}
-          </button>
-        ))}
-      </div>
 
       {/* Messages */}
       <div className="ast-messages">
@@ -289,13 +377,40 @@ const AssistantPage = () => {
 
       {/* Input */}
       <div className="ast-input-area">
+        <button
+          className={`ast-voice-btn ${listening ? 'listening' : ''}`}
+          onPointerDown={startPushToTalk}
+          onPointerUp={stopPushToTalk}
+          onPointerCancel={stopPushToTalk}
+          onPointerLeave={stopPushToTalk}
+          onKeyDown={handleVoiceKeyDown}
+          onKeyUp={handleVoiceKeyUp}
+          disabled={loading || !enableVoice || !voiceSupported || !secureContext}
+          title={
+            !enableVoice
+              ? 'Microfone desativado no painel administrativo'
+              : !voiceSupported
+              ? 'Reconhecimento de voz nao suportado'
+              : !secureContext
+                ? 'Microfone requer HTTPS ou localhost'
+                : pushToTalkActive || listening
+                  ? 'Solte para enviar'
+                  : 'Pressione para falar'
+          }
+        >
+          {listening ? '■' : '🎙️'}
+        </button>
         <input
           ref={inputRef}
           className="ast-input"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Digite sua mensagem..."
+          placeholder={
+            enableVoice && voiceSupported
+              ? 'Digite ou toque no microfone para falar...'
+              : 'Digite sua mensagem...'
+          }
           disabled={loading}
           maxLength={2000}
           id="assistant-page-input"
@@ -308,6 +423,15 @@ const AssistantPage = () => {
         >
           ➤
         </button>
+      </div>
+      <div className={`ast-voice-status ${voiceNotice ? 'visible' : ''}`}>
+        {voiceNotice || (
+          !enableVoice
+            ? 'Microfone desativado pelo administrador.'
+            : voiceSupported
+              ? 'Pressione o microfone para falar.'
+              : 'Reconhecimento de voz indisponivel neste navegador.'
+        )}
       </div>
 
       {/* Immersive Speaking Overlay */}

@@ -5,6 +5,8 @@ echo =======================================
 echo  Local TV - Gerenciador de Inicializacao
 echo =======================================
 echo.
+echo OBS: A funcao de microfone do assistente funciona em localhost ou HTTPS.
+echo.
 
 :: ── Persistent Data Directory ──────────────────────────────────────
 :: If a .env file exists in the backend folder, load DATA_DIR from it.
@@ -54,12 +56,18 @@ echo =======================================
 if "%LOCAL_IP%"=="" (
     echo Painel Admin : http://localhost:5173/admin
     echo Player (TV)  : http://localhost:5173/player/[ID]
+    echo Assistente   : http://localhost:5173/assistant
 ) else (
     echo Painel Admin  : http://localhost:5173/admin
     echo Producao      : http://%LOCAL_IP%:3000
     echo Player na TV  : http://%LOCAL_IP%:5173/player/[ID_DO_DISPOSITIVO]
+    echo Assistente    : http://%LOCAL_IP%:5173/assistant
 )
 echo Dados salvos em: !DATA_DIR!
+echo.
+echo Microfone no assistente:
+echo - Funciona em localhost no navegador local
+echo - Em outro dispositivo pela rede, prefira HTTPS
 echo =======================================
 echo.
 

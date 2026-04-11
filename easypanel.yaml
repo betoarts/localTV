@@ -16,7 +16,10 @@ services:
       PORT: "3000"
       NODE_ENV: "production"
       LOG_REQUESTS: "1"
+      DATA_DIR: "/data"
     mounts:
       - type: volume
         name: localtv_data
         mountPath: /data    # Persists data.db and /media
+    # Publish behind an HTTPS domain in EasyPanel if you want microphone
+    # support in /assistant outside localhost.

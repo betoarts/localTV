@@ -55,6 +55,59 @@ Proxy para Open-Meteo com geocoding automático e cache de 10 min.
 
 ---
 
+## 🤖 Assistente AI
+
+### `POST /api/chat`
+Envia uma pergunta ao assistente.
+
+- **Body:**
+```json
+{
+  "message": "Meu nome e Carlos e moro em Canela",
+  "provider": "gemini"
+}
+```
+
+Notas:
+
+- O campo `provider` e opcional no frontend standalone; o backend aplica fallback automatico.
+- O backend usa:
+  - `systemPrompt`
+  - historico curto persistido
+  - fatos persistidos por `client_id`
+
+### `GET /api/chat/status`
+Retorna os provedores disponiveis e o fallback configurado.
+
+### `GET /api/chat/memory`
+Retorna a memoria do assistente para o `client_id` ativo.
+
+- **Resposta:**
+```json
+{
+  "client_id": "default",
+  "count": 4,
+  "items": [
+    { "role": "user", "content": "Meu nome e Carlos" },
+    { "role": "assistant", "content": "Prazer, Carlos." }
+  ],
+  "facts_count": 2,
+  "facts": [
+    { "fact_key": "name", "fact_value": "Carlos" },
+    { "fact_key": "city", "fact_value": "Canela" }
+  ]
+}
+```
+
+### `DELETE /api/chat/memory`
+Apaga toda a memoria do assistente para o `client_id` ativo.
+
+- Remove:
+  - historico curto
+  - fatos persistidos
+
+---
+
 ## 🖥️ Devices (Dispositivos)
 
 ### `GET /api/devices`

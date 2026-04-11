@@ -13,6 +13,7 @@ const TextOverlays = lazy(() => import('./admin/TextOverlays'));
 const Templates = lazy(() => import('./admin/Templates'));
 const ConfigSettings = lazy(() => import('./admin/ConfigSettings'));
 const AIAssistantConfig = lazy(() => import('./admin/AIAssistantConfig'));
+const AssistantMemory = lazy(() => import('./admin/AssistantMemory'));
 const Login = lazy(() => import('./admin/Login'));
 
 // Player is the most critical route, could be preloaded or kept static
@@ -46,6 +47,7 @@ function App() {
               <Route path="overlays" element={<TextOverlays />} />
               <Route path="settings" element={<ConfigSettings />} />
               <Route path="assistant-config" element={<AIAssistantConfig />} />
+              <Route path="assistant-memory" element={<AssistantMemory />} />
             </Route>
           </Route>
 

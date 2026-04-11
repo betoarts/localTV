@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { sendChatMessage, API_BASE } from '../api';
+import { sendChatMessage, API_BASE, clearAssistantMemory } from '../api';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import './RobotAssistant.css';
 
 const PROVIDERS = [
@@ -31,10 +32,35 @@ const RobotAssistant = () => {
   const [provider, setProvider] = useState('gemini');
   const [dynamicSuggestions, setDynamicSuggestions] = useState([]);
   const [enableOverlay, setEnableOverlay] = useState(true);
+  const [voiceNotice, setVoiceNotice] = useState('');
+  const [pushToTalkActive, setPushToTalkActive] = useState(false);
+  const [enableVoice, setEnableVoice] = useState(true);
+  const [clearingMemory, setClearingMemory] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
+
+  const {
+    supported: voiceSupported,
+    secureContext,
+    listening,
+    transcript,
+    error: voiceError,
+    startListening,
+    stopListening,
+    clearError,
+  } = useSpeechRecognition({
+    lang: 'pt-BR',
+    onInterimResult: (partial) => {
+      setInput(partial);
+    },
+    onFinalResult: (finalText) => {
+      setInput(finalText);
+      setVoiceNotice('Pergunta capturada. Enviando...');
+      sendQuery(finalText);
+    },
+  });
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -57,6 +83,9 @@ const RobotAssistant = () => {
         if (data.enableOverlay !== undefined) {
           setEnableOverlay(data.enableOverlay);
         }
+        if (data.enableVoice !== undefined) {
+          setEnableVoice(data.enableVoice);
+        }
         if (data.suggestions && data.suggestions.length > 0) {
           setDynamicSuggestions(data.suggestions.slice(0, 3)); // Only show top 3 inside the panel
         }
@@ -68,8 +97,21 @@ const RobotAssistant = () => {
   useEffect(() => {
     return () => {
       synthRef.current?.cancel();
+      stopListening();
     };
-  }, []);
+  }, [stopListening]);
+
+  useEffect(() => {
+    if (voiceError) {
+      setVoiceNotice(voiceError);
+    }
+  }, [voiceError]);
+
+  useEffect(() => {
+    if (!listening && transcript && !voiceError) {
+      setVoiceNotice('Transcricao concluida.');
+    }
+  }, [listening, transcript, voiceError]);
 
   const speak = useCallback((text) => {
     if (muted || !synthRef.current) return;
@@ -94,6 +136,8 @@ const RobotAssistant = () => {
     const userMsg = { role: 'user', content: text, time: new Date() };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
+    setVoiceNotice('');
+    clearError();
     setLoading(true);
 
     try {
@@ -142,6 +186,58 @@ const RobotAssistant = () => {
     return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handleClearMemory = async () => {
+    if (clearingMemory) return;
+    setClearingMemory(true);
+    try {
+      await clearAssistantMemory();
+      synthRef.current?.cancel();
+      stopListening();
+      setSpeaking(false);
+      setMessages([]);
+      setInput('');
+      clearError();
+      setVoiceNotice('Memoria do assistente apagada.');
+    } catch {
+      setVoiceNotice('Nao foi possivel limpar a memoria.');
+    } finally {
+      setClearingMemory(false);
+    }
+  };
+
+  const startPushToTalk = (e) => {
+    e.preventDefault();
+    if (loading || listening || !enableVoice || !voiceSupported || !secureContext) return;
+
+    const started = startListening();
+    if (started) {
+      setPushToTalkActive(true);
+      setVoiceNotice('Ouvindo... solte para enviar.');
+      inputRef.current?.focus();
+    }
+  };
+
+  const stopPushToTalk = (e) => {
+    e?.preventDefault?.();
+    if (!pushToTalkActive) return;
+
+    setPushToTalkActive(false);
+    stopListening();
+    setVoiceNotice('Processando fala...');
+  };
+
+  const handleVoiceKeyDown = (e) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      startPushToTalk(e);
+    }
+  };
+
+  const handleVoiceKeyUp = (e) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      stopPushToTalk(e);
+    }
+  };
+
   if (!enableOverlay) return null;
 
   if (!open) {
@@ -168,7 +264,7 @@ const RobotAssistant = () => {
           <div>
             <div className="ra-header-title">LocalTV AI</div>
             <div className="ra-header-provider">
-              {speaking ? '🔊 Falando...' : `via ${provider}`}
+              {listening ? '🎙️ Ouvindo...' : speaking ? '🔊 Falando...' : `via ${provider}`}
             </div>
           </div>
           <div className="ra-header-actions">
@@ -178,6 +274,14 @@ const RobotAssistant = () => {
               title={muted ? 'Ativar voz' : 'Silenciar'}
             >
               {muted ? '🔇' : '🔊'}
+            </button>
+            <button
+              className="ra-btn-icon"
+              onClick={handleClearMemory}
+              title="Limpar memoria"
+              disabled={clearingMemory}
+            >
+              🧠
             </button>
             <button
               className="ra-btn-icon"
@@ -263,13 +367,36 @@ const RobotAssistant = () => {
 
         {/* Input */}
         <div className="ra-input-area">
+          <button
+            className={`ra-mic-btn ${listening ? 'listening' : ''}`}
+            onPointerDown={startPushToTalk}
+            onPointerUp={stopPushToTalk}
+            onPointerCancel={stopPushToTalk}
+            onPointerLeave={stopPushToTalk}
+            onKeyDown={handleVoiceKeyDown}
+            onKeyUp={handleVoiceKeyUp}
+            disabled={loading || !enableVoice || !voiceSupported || !secureContext}
+            title={
+              !enableVoice
+                ? 'Microfone desativado no painel administrativo'
+                : !voiceSupported
+                ? 'Reconhecimento de voz nao suportado'
+                : !secureContext
+                  ? 'Microfone requer HTTPS ou localhost'
+                  : pushToTalkActive || listening
+                    ? 'Solte para enviar'
+                    : 'Pressione para falar'
+            }
+          >
+            {listening ? '■' : '🎙️'}
+          </button>
           <input
             ref={inputRef}
             className="ra-input"
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Digite sua mensagem..."
+            placeholder={enableVoice && voiceSupported ? 'Digite ou fale...' : 'Digite sua mensagem...'}
             disabled={loading}
             maxLength={2000}
             id="robot-assistant-input"
@@ -282,6 +409,15 @@ const RobotAssistant = () => {
           >
             ➤
           </button>
+        </div>
+        <div className={`ra-voice-status ${voiceNotice ? 'visible' : ''}`}>
+          {voiceNotice || (
+            !enableVoice
+              ? 'Microfone desativado pelo administrador.'
+              : voiceSupported
+                ? 'Pressione o microfone para falar.'
+                : 'Reconhecimento de voz indisponivel.'
+          )}
         </div>
       </div>
     </div>
