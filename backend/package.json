@@ -21,7 +21,6 @@
     "sqlite3": "^6.0.1"
   },
   "overrides": {
-    "brace-expansion": "1.1.12",
     "picomatch": "4.0.4",
     "path-to-regexp": "8.4.0"
   }
