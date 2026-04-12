@@ -205,36 +205,19 @@ const RobotAssistant = () => {
     }
   };
 
-  const startPushToTalk = (e) => {
-    e.preventDefault();
-    if (loading || listening || !enableVoice || !voiceSupported || !secureContext) return;
-
-    const started = startListening();
-    if (started) {
-      setPushToTalkActive(true);
-      setVoiceNotice('Ouvindo... solte para enviar.');
-      inputRef.current?.focus();
-    }
-  };
-
-  const stopPushToTalk = (e) => {
+  const toggleListening = (e) => {
     e?.preventDefault?.();
-    if (!pushToTalkActive) return;
+    if (loading || !enableVoice || !voiceSupported || !secureContext) return;
 
-    setPushToTalkActive(false);
-    stopListening();
-    setVoiceNotice('Processando fala...');
-  };
-
-  const handleVoiceKeyDown = (e) => {
-    if (e.key === ' ' || e.key === 'Enter') {
-      startPushToTalk(e);
-    }
-  };
-
-  const handleVoiceKeyUp = (e) => {
-    if (e.key === ' ' || e.key === 'Enter') {
-      stopPushToTalk(e);
+    if (listening) {
+      stopListening();
+      setVoiceNotice('Processando fala...');
+    } else {
+      const started = startListening();
+      if (started) {
+        setVoiceNotice('Ouvindo... toque novamente para finalizar.');
+        inputRef.current?.focus();
+      }
     }
   };
 
@@ -369,12 +352,7 @@ const RobotAssistant = () => {
         <div className="ra-input-area">
           <button
             className={`ra-mic-btn ${listening ? 'listening' : ''}`}
-            onPointerDown={startPushToTalk}
-            onPointerUp={stopPushToTalk}
-            onPointerCancel={stopPushToTalk}
-            onPointerLeave={stopPushToTalk}
-            onKeyDown={handleVoiceKeyDown}
-            onKeyUp={handleVoiceKeyUp}
+            onClick={toggleListening}
             disabled={loading || !enableVoice || !voiceSupported || !secureContext}
             title={
               !enableVoice
@@ -383,9 +361,9 @@ const RobotAssistant = () => {
                 ? 'Reconhecimento de voz nao suportado'
                 : !secureContext
                   ? 'Microfone requer HTTPS ou localhost'
-                  : pushToTalkActive || listening
-                    ? 'Solte para enviar'
-                    : 'Pressione para falar'
+                  : listening
+                    ? 'Clique para finalizar'
+                    : 'Clique para falar'
             }
           >
             {listening ? '■' : '🎙️'}

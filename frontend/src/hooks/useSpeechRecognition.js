@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 
 const SpeechRecognitionCtor =
   typeof window !== 'undefined'
-    ? window.SpeechRecognition || window.webkitSpeechRecognition
+    ? (() => {
+        const ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+        console.log('[SpeechRecognition] Available:', !!ctor, 'Constructor:', ctor?.name);
+        return ctor;
+      })()
     : null;
 
 const isLocalHost = () => {
@@ -49,6 +53,7 @@ export function useSpeechRecognition({ lang = 'pt-BR', onFinalResult, onInterimR
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    console.log('[SpeechRecognition] Checking support...', { SpeechRecognitionCtor, isSecure: window.isSecureContext, hostname: window.location.hostname });
     setSupported(Boolean(SpeechRecognitionCtor));
     setSecureContext(window.isSecureContext || isLocalHost());
 
@@ -56,6 +61,7 @@ export function useSpeechRecognition({ lang = 'pt-BR', onFinalResult, onInterimR
 
     const recognition = new SpeechRecognitionCtor();
     recognition.lang = lang;
+    console.log('[SpeechRecognition] Created instance:', recognition);
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
@@ -66,6 +72,7 @@ export function useSpeechRecognition({ lang = 'pt-BR', onFinalResult, onInterimR
       setListening(true);
     };
 
+    console.log('[SpeechRecognition] Setting up event handlers');
     recognition.onresult = (event) => {
       let interimText = '';
       let finalText = '';
@@ -73,6 +80,7 @@ export function useSpeechRecognition({ lang = 'pt-BR', onFinalResult, onInterimR
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const text = event.results[i][0]?.transcript?.trim() || '';
         if (!text) continue;
+        console.log('[SpeechRecognition] Result:', { text, isFinal: event.results[i].isFinal });
 
         if (event.results[i].isFinal) {
           finalText = `${finalText} ${text}`.trim();
@@ -95,12 +103,15 @@ export function useSpeechRecognition({ lang = 'pt-BR', onFinalResult, onInterimR
 
     recognition.onerror = (event) => {
       setListening(false);
+      console.error('[SpeechRecognition] Error:', event.error, event);
       if (event.error !== 'aborted') {
         setError(getErrorMessage(event.error));
       }
     };
 
+    console.log('[SpeechRecognition] Starting recognition...');
     recognition.onend = () => {
+      console.log('[SpeechRecognition] Recognition ended');
       setListening(false);
     };
 
@@ -118,11 +129,13 @@ export function useSpeechRecognition({ lang = 'pt-BR', onFinalResult, onInterimR
 
   const startListening = useCallback(() => {
     if (!recognitionRef.current) {
+      console.error('[SpeechRecognition] No recognition instance available');
       setError('Reconhecimento de voz nao suportado neste navegador.');
       return false;
     }
 
     if (!secureContext) {
+      console.error('[SpeechRecognition] Not in secure context');
       setError('Microfone requer HTTPS ou localhost para funcionar.');
       return false;
     }
@@ -131,9 +144,12 @@ export function useSpeechRecognition({ lang = 'pt-BR', onFinalResult, onInterimR
     setTranscript('');
 
     try {
+      console.log('[SpeechRecognition] Calling recognitionRef.current.start()');
       recognitionRef.current.start();
+      console.log('[SpeechRecognition] start() called successfully');
       return true;
     } catch (err) {
+      console.error('[SpeechRecognition] start() threw error:', err);
       const message = err?.name === 'InvalidStateError'
         ? 'O microfone ja esta em uso pelo reconhecimento.'
         : 'Nao foi possivel iniciar o microfone.';
