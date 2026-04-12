@@ -1,4 +1,4 @@
-# 📺 LocalTV - Sistema de Sinalização Digital (Digital Signage)
+﻿# 📺 LocalTV - Sistema de Sinalização Digital (Digital Signage)
 
 **LocalTV** é uma aplicação full-stack para gerenciamento de terminais de exibição (TVs/Monitores). Permite controle centralizado de mídias, playlists, templates e overlays em tempo real, com suporte a multi-cliente.
 
@@ -70,14 +70,55 @@ Recursos atuais:
 ### Rotas e telas relacionadas
 
 - **Assistente standalone:** `/assistant`
-- **Configuração do assistente:** `/admin/assistant-config`
+- **Configuração do assistente:** `/admin/ai-assistant-config`
 - **Memória do assistente:** `/admin/assistant-memory`
 
-### Microfone
+### 🎤 Microfone e Reconhecimento de Voz
 
-- Em desenvolvimento, o microfone funciona em `localhost`.
-- Em tablet/outro dispositivo na rede, prefira publicar em `HTTPS`.
-- O recurso pode ser ativado ou desativado no painel admin.
+O assistente suporta entrada por voz usando a **Web Speech API** do navegador.
+
+**Requisitos:**
+
+| Requisito | Descrição |
+|-----------|-----------|
+| **Navegador** | Chrome ou Edge (Firefox e Safari não suportam) |
+| **Contexto Seguro** | `localhost` ou `HTTPS` obrigatório |
+| **Permissão** | Usuário deve autorizar acesso ao microfone |
+| **Configuração** | `enableVoice: true` no banco de dados |
+
+**Ativação:**
+
+1. Acesse `/assistant` no Chrome ou Edge
+2. Clique no botão de microfone (🎙️)
+3. Autorize o acesso ao microfone se solicitado
+4. Fale sua pergunta e aguarde a transcrição
+5. O assistente enviará automaticamente após detectar o fim da fala
+
+**Solução de Problemas:**
+
+| Sintoma | Causa Provável | Solução |
+|---------|----------------|---------|
+| Botão cinza/desabilitado | `enableVoice: false` | Ative no painel admin |
+| "Reconhecimento de voz nao suportado" | Navegador incompatível | Use Chrome ou Edge |
+| "Microfone requer HTTPS" | Acessando por IP (ex: 192.168.x.x) | Use HTTPS ou localhost |
+| "Permissao do microfone negada" | Permissão bloqueada | Clique no cadeado da URL → Microfone → Permitir |
+| "Nao detectei fala" | Volume baixo ou silêncio | Fale mais alto ou verifique o microfone |
+
+**Configuração via Banco de Dados:**
+
+A configuração `enableVoice` é armazenada na tabela `app_settings`:
+
+```json
+{
+  "systemPrompt": "...",
+  "suggestions": ["..."],
+  "responseLength": "curto",
+  "enableOverlay": false,
+  "enableVoice": true
+}
+```
+
+Para produção em HTTPS, certifique-se de que `enableVoice` esteja habilitado no painel administrativo.
 
 ### Memória
 
@@ -117,7 +158,7 @@ Recomendações:
 │   └── server.js       # Core do servidor
 ├── frontend/           # Aplicação React (Admin e Player)
 │   ├── src/admin/      # Telas de gerenciamento
-│   ├── src/hooks/      # Hooks reutilizáveis (ex: voz)
+│   ├── src/hooks/      # Hooks reutilizáveis (ex: useSpeechRecognition.js)
 │   └── src/player/     # O "Motor" de exibição das TVs e assistente
 ├── Dockerfile          # Configuração de containerização
 └── ARCHITECTURE.md     # Detalhes técnicos da arquitetura

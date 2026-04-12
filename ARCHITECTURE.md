@@ -1,4 +1,4 @@
-# Arquitetura do Sistema - LocalTV
+﻿# Arquitetura do Sistema - LocalTV
 
 Este documento descreve a arquitetura do LocalTV, incluindo o modelo multi-cliente, persistência de dados e fluxos entre Admin, API e Player.
 
@@ -46,6 +46,74 @@ Fluxo atual:
 3. O backend tenta os provedores em fallback (`gemma`, `gemini`, `openai`).
 4. O frontend renderiza a resposta e faz TTS com `speechSynthesis`.
 5. Quando habilitado, a entrada por voz usa Web Speech API no navegador.
+
+#### Reconhecimento de Voz (Speech Recognition)
+
+A entrada por voz é implementada no frontend usando a **Web Speech API**:
+
+**Componentes:**
+
+| Arquivo | Responsabilidade |
+|---------|------------------|
+| `frontend/src/hooks/useSpeechRecognition.js` | Hook React que gerencia o ciclo de vida do reconhecimento |
+| `frontend/src/player/AssistantPage.jsx` | Interface do usuário com botão de microfone |
+| `backend/routes/settingsRoutes.js` | Configuração `enableVoice` no banco |
+
+**Fluxo de Reconhecimento:**
+
+1. Usuário clica no botão de microfone
+2. `useSpeechRecognition` verifica:
+   - `window.SpeechRecognition` ou `window.webkitSpeechRecognition` disponíveis
+   - Contexto seguro (`localhost` ou `HTTPS`)
+   - `enableVoice` habilitado na configuração
+3. Inicia captura de áudio com `recognition.start()`
+4. Eventos:
+   - `onstart`: Define estado `listening = true`
+   - `onresult`: Processa resultados interim e final
+   - `onend`: Define estado `listening = false`
+   - `onerror`: Trata erros (permissão negada, sem fala, etc.)
+5. Resultado final é enviado automaticamente via `POST /api/chat`
+
+**Tratamento de Erros:**
+
+```javascript
+// Erros comuns tratados:
+- 'not-allowed': Permissão do microfone negada
+- 'no-speech': Nenhuma fala detectada
+- 'audio-capture': Microfone não acessível
+- 'network': Falha na rede de reconhecimento
+- 'language-not-supported': pt-BR não disponível
+```
+
+**Debug Logging:**
+
+O hook inclui logs de console para diagnóstico:
+
+```javascript
+console.log('[SpeechRecognition] Checking support...', { ... })
+console.log('[SpeechRecognition] Created instance:', recognition)
+console.log('[SpeechRecognition] Result:', { text, isFinal })
+console.error('[SpeechRecognition] Error:', event.error)
+```
+
+**Configuração:**
+
+A configuração `enableVoice` é armazenada em `app_settings`:
+
+```sql
+SELECT value FROM app_settings WHERE key = 'ai_config';
+-- Retorna: {"enableVoice": true, ...}
+```
+
+Para alterar via painel admin, acesse `/admin/ai-assistant-config`.
+
+**Requisitos de Navegador:**
+
+| Navegador | Suporte |
+|-----------|---------|
+| Chrome/Edge | ✅ Completo (webkitSpeechRecognition) |
+| Firefox | ❌ Não implementado |
+| Safari | ❌ Não implementado |
 
 Memória V3:
 
