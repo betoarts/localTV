@@ -5,15 +5,17 @@ const { db } = require('../database');
 
 const gemmaService = require('../services/gemmaService');
 const geminiService = require('../services/geminiService');
+const groqService = require('../services/groqService');
 const openaiService = require('../services/openaiService');
 
 const providers = {
   gemma: gemmaService,
   gemini: geminiService,
+  groq: groqService,
   openai: openaiService,
 };
 
-const FALLBACK_ORDER = ['gemma', 'gemini', 'openai'];
+const FALLBACK_ORDER = ['gemma', 'gemini', 'groq', 'openai'];
 const DEFAULT_CLIENT_ID = 'default';
 const MEMORY_LIMIT = 20;
 const FACT_LIMIT = 10;
@@ -289,6 +291,7 @@ router.get('/chat/status', (req, res) => {
     providers: Object.keys(providers),
     fallback_order: FALLBACK_ORDER,
     gemini_configured: !!process.env.GEMINI_API_KEY,
+    groq_configured: !!process.env.GROQ_API_KEY,
     openai_configured: !!process.env.OPENAI_API_KEY,
   });
 });

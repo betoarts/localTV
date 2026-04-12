@@ -6,6 +6,7 @@ import './RobotAssistant.css';
 const PROVIDERS = [
   { id: 'gemma', label: 'Gemma' },
   { id: 'gemini', label: 'Gemini' },
+  { id: 'groq', label: 'Groq' },
   { id: 'openai', label: 'OpenAI' },
 ];
 

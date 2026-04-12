@@ -17,6 +17,12 @@ services:
       NODE_ENV: "production"
       LOG_REQUESTS: "1"
       DATA_DIR: "/data"
+      # Optional AI providers for assistant redundancy
+      # GEMINI_API_KEY: ""
+      # GEMINI_MODEL: "gemini-2.0-flash"
+      # GROQ_API_KEY: ""
+      # OPENAI_API_KEY: ""
+      # OPENAI_MODEL: "gpt-4o-mini"
     mounts:
       - type: volume
         name: localtv_data

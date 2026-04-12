@@ -67,6 +67,27 @@ Recursos atuais:
 - limpeza de memoria pelo proprio assistente
 - painel admin para configurar o assistente e inspecionar a memoria
 
+### Provedores suportados
+
+- `gemma` via Ollama/local
+- `gemini` via `GEMINI_API_KEY`
+- `groq` via `GROQ_API_KEY`
+- `openai` via `OPENAI_API_KEY`
+
+Variaveis de ambiente mais relevantes para redundancia do assistente:
+
+```env
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.0-flash
+GROQ_API_KEY=...
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-4o-mini
+OLLAMA_URL=http://localhost:11434
+GEMMA_MODEL=gemma
+```
+
+Para `Groq`, basta informar `GROQ_API_KEY`. Se `GROQ_MODEL` nao for definido, o backend usa `llama-3.3-70b-versatile` por padrao.
+
 ### Rotas e telas relacionadas
 
 - **Assistente standalone:** `/assistant`

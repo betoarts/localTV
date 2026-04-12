@@ -64,7 +64,7 @@ Envia uma pergunta ao assistente.
 ```json
 {
   "message": "Meu nome e Carlos e moro em Canela",
-  "provider": "gemini"
+  "provider": "groq"
 }
 ```
 
@@ -75,6 +75,11 @@ Notas:
   - `systemPrompt`
   - historico curto persistido
   - fatos persistidos por `client_id`
+- Provedores suportados atualmente:
+  - `gemma`
+  - `gemini`
+  - `groq`
+  - `openai`
 
 ### `GET /api/chat/status`
 Retorna os provedores disponiveis e o fallback configurado.
