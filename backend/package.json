@@ -21,7 +21,6 @@
     "sqlite3": "^5.1.7"
   },
   "overrides": {
-    "picomatch": "4.0.4",
-    "path-to-regexp": "8.2.0"
+    "picomatch": "4.0.4"
   }
 }
